@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title></title>
+		<meta charset="utf-8"/>
+		<meta name="viewport" content="width=300, user-scalable=no"/>
+		<script type="text/javascript" src="http://code.jquery.com/jquery-2.0.3.min.js"></script>
+		<script type="text/javascript" src="lib/jsdeferred.nodoc.js"></script>
+		<script type="text/javascript" src="morse.js"></script>
+		<script type="text/javascript" src="test.js"></script>
+		<style>
+			html, body {
+				position: relative;
+				width: 300px;
+				margin: 0;
+				padding: 0;
+			}
+
+			#a {
+				text-align: center;
+				font-size: 500%;
+				font-weight: bold;
+				font-family: "Monaco", monospace;
+				line-height: 1;
+				height: 50px;
+				margin: 0;
+				padding: 20px 0;
+			}
+
+			#a.success {
+				color: #0c0;
+			}
+
+			input[type=submit],
+			input[type=button] {
+				display: inline-block;
+				-webkit-appearance:: button;
+				cursor: pointer;
+				border: 2px solid transparent;
+				background: #008287;
+				color: #fff;
+				margin: 10px 0;
+				padding: 0 10px;
+				height: 3em;
+
+				font-size: 15px;
+				text-align: center;
+			}
+
+			.buttons {
+				margin: 0;
+				padding: 0;
+			}
+		</style>
+	</head>
+	<body>
+		<p id="a"> </p>
+	</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title></title>
+		<meta charset="utf-8"/>
+		<meta name="viewport" content="width=300, user-scalable=no"/>
+		<script type="text/javascript" src="http://code.jquery.com/jquery-2.0.3.min.js"></script>
+		<script type="text/javascript" src="lib/jsdeferred.nodoc.js"></script>
+		<script type="text/javascript" src="morse.js"></script>
+		<script type="text/javascript" src="koch.js"></script>
+		<style>
+			html, body {
+				position: relative;
+				width: 300px;
+				margin: 0;
+				padding: 0;
+				line-height: 1.33;
+			}
+
+			#a {
+				background: #efefef;
+				padding: 10px;
+				font-size: 150%;
+				font-weight: bold;
+				font-family: "Monaco", monospace;
+				line-height: 1;
+				margin: 10px;
+				padding: 0 10px;
+				line-height: 1.5;
+			}
+
+			#a.success {
+				color: #0c0;
+			}
+
+			input[type=submit],
+			input[type=button] {
+				display: inline-block;
+				-webkit-appearance:: button;
+				cursor: pointer;
+				border: 2px solid transparent;
+				background: #008287;
+				color: #fff;
+				margin: 10px 0;
+				padding: 0 10px;
+				height: 3em;
+
+				font-size: 15px;
+				text-align: center;
+			}
+
+			.buttons {
+				margin: 0;
+				padding: 0;
+			}
+
+			.buttons input.answer {
+				float: left;
+				height: 50px;
+				width: 50px;
+				margin: 0;
+				outline: 1px solid #fff;
+			}
+
+
+			#score-container {
+				position: absolute;
+				top: 0;
+				right: 0;
+				padding: 5px;
+				margin: 0;
+				font-size: 10px;
+			}
+
+			p {
+				margin: 0;
+				padding: 10px;
+			}
+		</style>
+	</head>
+	<body>
+		<p>
+			<input type="button" value="start" id="start"/>
+			<span id="elapsed"></span>
+		</p>
+		<pre id="a"></pre>
+		<p>
+			<a href="#" id="levelup">Level Up</a>
+		</p>
+
+		<!--
+		<p class="buttons">
+			<input type="button" class="answer" value="A"/>
+			<input type="button" class="answer" value="B"/>
+			<input type="button" class="answer" value="C"/>
+			<input type="button" class="answer" value="D"/>
+			<input type="button" class="answer" value="E"/>
+			<input type="button" class="answer" value="F"/>
+			<input type="button" class="answer" value="G"/>
+			<input type="button" class="answer" value="H"/>
+			<input type="button" class="answer" value="I"/>
+			<input type="button" class="answer" value="J"/>
+			<input type="button" class="answer" value="K"/>
+			<input type="button" class="answer" value="L"/>
+			<input type="button" class="answer" value="M"/>
+			<input type="button" class="answer" value="N"/>
+			<input type="button" class="answer" value="O"/>
+			<input type="button" class="answer" value="P"/>
+			<input type="button" class="answer" value="Q"/>
+			<input type="button" class="answer" value="R"/>
+			<input type="button" class="answer" value="S"/>
+			<input type="button" class="answer" value="T"/>
+			<input type="button" class="answer" value="U"/>
+			<input type="button" class="answer" value="V"/>
+			<input type="button" class="answer" value="W"/>
+			<input type="button" class="answer" value="X"/>
+			<input type="button" class="answer" value="Y"/>
+			<input type="button" class="answer" value="Z"/>
+
+			<input type="button" class="answer" value="0"/>
+			<input type="button" class="answer" value="1"/>
+			<input type="button" class="answer" value="2"/>
+			<input type="button" class="answer" value="3"/>
+			<input type="button" class="answer" value="4"/>
+			<input type="button" class="answer" value="5"/>
+			<input type="button" class="answer" value="6"/>
+			<input type="button" class="answer" value="7"/>
+			<input type="button" class="answer" value="8"/>
+			<input type="button" class="answer" value="9"/>
+		</p>
+		-->
+	</body>
+</html>
