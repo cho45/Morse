@@ -170,9 +170,15 @@ CWDecoder.prototype = {
 		 *
 		 */
 
+		// TODO: 平均から離れて大きいほど選択されやすくなるようにしたい
 		var frequency = self.FFT.getBandFrequency(self.FFT.peakBand);
+		// 300Hz - 1200Hz 以外は無視する
+		if (frequency < 300 || 1200 < frequency) {
+			return;
+		}
+
 		self.peakBandHistory.push(frequency);
-		while (self.peakBandHistory.length > 10) self.peakBandHistory.shift();
+		while (self.peakBandHistory.length > 20) self.peakBandHistory.shift();
 
 		var avg = 0;
 		for (var i = 0, len = self.peakBandHistory.length; i < len; i++) {
@@ -180,7 +186,7 @@ CWDecoder.prototype = {
 		}
 
 		if (Math.abs(frequency - avg) < 10 && self.targetTone !== frequency) {
-			console.log(['tracking changed targetTone', self.targetTone]);
+			console.log(['tracking changed targetTone', self.targetTone, '->', frequency]);
 			self.targetTone = frequency;
 		}
 	},
@@ -314,7 +320,15 @@ CWDecoder.prototype = {
 				phase = phase ? 0 : -0.5;
 			}
 		}
-		self.drawTimeDomain(clocks, '#0000ff', 0.00003 * DOWNSAMPLING_FACTOR2);
+		self.drawTimeDomain(clocks, '#0000ff', 0.00003 * DOWNSAMPLING_FACTOR2 / 2);
+
+		var ctx = self.history2dContext;
+		ctx.font = "10px sans-serif";
+		ctx.textBaseline = "bottom";
+		ctx.textAlign = "left";
+		ctx.fillStyle = '#00ff00';
+		var clockSec = clock / (self.downSampleRate / DOWNSAMPLING_FACTOR2);
+		ctx.fillText(clock + ' clock / ' + Math.round(clockSec * 1000) + ' msec', 0, self.historyCanvas.height);
 
 		// モールスデコード
 		var results = [];
@@ -339,7 +353,7 @@ CWDecoder.prototype = {
 					if (code) {
 						self.offset = len - i;
 						results.push({
-							index: i,
+							index: i - (3 * clock),
 							char : Morse.reverse[code] || code
 						});
 						code = '';
@@ -466,6 +480,12 @@ CWDecoder.prototype = {
 			var hz = i * 100;
 			ctx.fillText(hz + 'Hz', hz / self.FFT.bandwidth, 5);
 		}
+
+		ctx.font = "10px sans-serif";
+		ctx.textBaseline = "bottom";
+		ctx.textAlign = "left";
+		ctx.fillStyle = '#ffffff';
+		ctx.fillText('Target Tone: ' + Math.round(self.targetTone) + 'Hz', 0, h);
 	},
 
 
