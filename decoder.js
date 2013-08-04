@@ -514,6 +514,7 @@ CWDecoder.prototype = {
 						code += String.fromCharCode(65 + Math.random() * 25);
 					}
 
+					self.unit  = self.context.sampleRate * (100 / 1000);
 					self.tone = self.context.sampleRate / (2 * Math.PI * 600);
 					var source = self.context.createBufferSource();
 					source.buffer = self.createToneBuffer(code);
@@ -535,6 +536,7 @@ CWDecoder.prototype = {
 						code += String.fromCharCode(65 + Math.random() * 25);
 					}
 
+					self.unit  = self.context.sampleRate * (50 / 1000);
 					self.tone = self.context.sampleRate / (2 * Math.PI * 400);
 					var source = self.context.createBufferSource();
 					source.buffer = self.createToneBuffer(code);

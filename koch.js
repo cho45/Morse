@@ -55,7 +55,7 @@ KochMethod.prototype = {
 			var code = '';
 			var len = Math.floor((config.word[1] - config.word[0]) * Math.random()) + config.word[0];
 			for (var i = 0; i < len; i++) {
-				var char = self.chars.charAt(Math.floor(config.level * Math.random()));
+				var char = self.chars.charAt(Math.floor((config.level + 1) * Math.random()));
 				code += char;
 			}
 
@@ -172,25 +172,16 @@ KochMethod.prototype = {
 
 $(function () {
 
-	var input = function () {
-		var d = null;
-		$('.buttons').on('touchstart click', function (e) {
-			if (d) {
-				d.call(e.target.value);
-				d = null;
-			}
-		});
 
-		return function () {
-			d = new Deferred();
-			return d;
-		};
-	} ();
-
-	var $start = $('#start');
-	var $answer = $('#a');
-	var $elapsed = $('#elapsed');
-	var $levelup = $('#levelup');
+	var $buttons        = $('#buttons').hide();
+	var $start          = $('#start');
+	var $answer         = $('#answer');
+	var $answerInput    = $('#answer-input');
+	var $answerAnswer   = $('#answer-answer');
+	var $answerAccuracy = $('#answer-accuracy');
+	var $elapsed        = $('#elapsed');
+	var $levelup        = $('#levelup');
+	var $input          = $('#input');
 
 	var config = {
 		level: +location.search.substring(1) || 2,
@@ -198,7 +189,8 @@ $(function () {
 		character_spacing : 1.25,
 		word_spacing: 2.5,
 		tone: 600,
-		time: 60 * 3, // sec
+		// time: 10, // sec
+		time: 60, // sec
 		wpm: 23
 	};
 
@@ -207,22 +199,90 @@ $(function () {
 	$start.val('Start (Level:' + config.level + ')');
 	$levelup.attr('href', '?' + (config.level + 1));
 
-	$start.click(function () {
-		$answer.empty();
+	// CAPS LOCK
+	$input.keyup(function (e) {
+		var cursor = this.selectionStart;
+		this.value = this.value.toUpperCase();
+		this.selectionStart = cursor;
+		this.selectionEnd = cursor;
+	}).hide();
 
-		var start = new Date();
-		var timer = setInterval(function () {
-			$elapsed.text( Math.floor((new Date() - start) / 1000) );
-		}, 1000);
-		koch.start(function (answer) {
-			$answer.append(answer + "\n");
-		}).
-		next(function () {
-			clearInterval(timer);
-		}).
-		error(function (e) {
-			alert(e);
-		});
+	$start.click(function () {
+		$buttons.show();
+		$answer.hide();
+		$answerInput.empty();
+		$answerAnswer.empty();
+		$input.val('').show().focus();
+
+		setTimeout(function () {
+			var start = new Date();
+			var timer = setInterval(function () {
+				$elapsed.text( Math.floor((new Date() - start) / 1000) );
+			}, 1000);
+
+			var answers = [];
+
+			koch.start(function (answer) {
+				answers.push(answer);
+			}).
+			next(function () {
+				clearInterval(timer);
+				return wait(3);
+			}).
+			next(function () {
+				$input.hide();
+				var inputs = $input.val().split(/\s+/);
+
+				var inputsJoined = inputs.join("\n");
+				var answersJoined = answers.join("\n");
+
+				var dmp = new diff_match_patch();
+				var diffs = dmp.diff_main(inputsJoined, answersJoined);
+
+				var $i = $('<div/>');
+				var $a = $('<div/>');
+
+				for (var i = 0, it; (it = diffs[i]); i++) {
+					if (it[0] === 0) {
+						$i.append(it[1]);
+						$a.append(it[1]);
+					} else
+					if (it[0] === -1) {
+						$('<span class="delete"/>').text(it[1]).appendTo($a);
+					} else
+					if (it[0] === 1) {
+						$('<span class="insert"/>').text(it[1]).appendTo($i);
+					}
+				}
+
+				$answerInput.append($i);
+				$answerAnswer.append($a);
+
+				var distanse  = dmp.diff_levenshtein(diffs);
+				var wrongRate = distanse / answersJoined.replace(/\s+/g, '').length;
+				var accuracy  = (1 - wrongRate) * 100;
+
+
+				$answerAccuracy.text(accuracy.toFixed(1) + '%');
+				if (accuracy >= 90) {
+					$answerAccuracy.addClass('success');
+				} else {
+					$answerAccuracy.removeClass('success');
+				}
+
+				$answer.show();
+				$buttons.hide();
+			}).
+			error(function (e) {
+				alert(e);
+			});
+		}, 3000);
+	});
+
+	$buttons.on('touchstart click', function (e) {
+		if (e.target.value) {
+			$input.val($input.val() + e.target.value);
+		}
 	});
 
 	window.play = function (chars) {

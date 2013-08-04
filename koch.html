@@ -6,6 +6,7 @@
 		<meta name="viewport" content="width=300, user-scalable=no"/>
 		<script type="text/javascript" src="http://code.jquery.com/jquery-2.0.3.min.js"></script>
 		<script type="text/javascript" src="lib/jsdeferred.nodoc.js"></script>
+		<script type="text/javascript" src="lib/diff_match_patch.js"></script>
 		<script type="text/javascript" src="morse.js"></script>
 		<script type="text/javascript" src="koch.js"></script>
 		<style>
@@ -17,7 +18,7 @@
 				line-height: 1.33;
 			}
 
-			#a {
+			#answer {
 				background: #efefef;
 				padding: 10px;
 				font-size: 150%;
@@ -49,12 +50,12 @@
 				text-align: center;
 			}
 
-			.buttons {
+			#buttons {
 				margin: 0;
 				padding: 0;
 			}
 
-			.buttons input.answer {
+			#buttons input.answer {
 				float: left;
 				height: 50px;
 				width: 50px;
@@ -76,6 +77,23 @@
 				margin: 0;
 				padding: 10px;
 			}
+
+			#input {
+				font-size: 18px;
+				font-family: monospace;
+			}
+
+			#answer-answer {
+				color: #009900;
+			}
+
+			.delete {
+				color: #990000;
+			}
+
+			.insert {
+				color: #990099;
+			}
 		</style>
 	</head>
 	<body>
@@ -83,13 +101,25 @@
 			<input type="button" value="start" id="start"/>
 			<span id="elapsed"></span>
 		</p>
-		<pre id="a"></pre>
-		<p>
-			<a href="#" id="levelup">Level Up</a>
-		</p>
+		<div style="margin: 10px">
+			<textarea id="input" cols="10" rows="5" style="width: 100%"></textarea>
+		</div>
+		<div id="answer">
+			<div id="answer-accuracy"></div>
+			<table>
+				<tr>
+					<td>
+						<pre id="answer-input"></pre>
+					</td>
+					<td>
+						<pre id="answer-answer"></pre>
+					</td>
+				</tr>
+			</table>
+		</div>
 
 		<!--
-		<p class="buttons">
+		<p id="buttons">
 			<input type="button" class="answer" value="A"/>
 			<input type="button" class="answer" value="B"/>
 			<input type="button" class="answer" value="C"/>
@@ -129,5 +159,9 @@
 			<input type="button" class="answer" value="9"/>
 		</p>
 		-->
+
+		<p>
+			<a href="#" id="levelup">Level Up</a>
+		</p>
 	</body>
 </html>
