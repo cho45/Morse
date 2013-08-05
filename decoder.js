@@ -39,6 +39,9 @@ CWDecoder.prototype = {
 		self.SAMPLES_BUFFER_LENGTH = 8; // sec
 		self.FFT_SIZE = 1024;
 
+		// ローパスをかけたあとのダウンサンプリング
+		self.DOWNSAMPLING_FACTOR2 = 4;
+
 		self.downSampleRate     = self.context.sampleRate / self.DOWNSAMPLING_FACTOR;
 
 		// 循環バッファ
@@ -84,7 +87,7 @@ CWDecoder.prototype = {
 	start : function () {
 		var self = this;
 
-		var useDummy = 1;
+		var useDummy = /dummy/.test(location.hash);
 		if (useDummy) {
 //			navigator.getMedia({ video: false, audio: true }, function (stream) {
 //				var source = self.context.createMediaStreamSource(stream);
@@ -101,6 +104,9 @@ CWDecoder.prototype = {
 //				alert(e);
 //			});
 			var dummy = self.createDummy();
+			if (/dummy-output/.test(location.hash)) {
+				dummy.connect(self.context.destination);
+			}
 			self.decode(dummy);
 		} else {
 			navigator.getMedia({ video: false, audio: true }, function (stream) {
@@ -228,7 +234,6 @@ CWDecoder.prototype = {
 		 *
 		 */
 		var self = this;
-		var DOWNSAMPLING_FACTOR2 = 4;
 
 		var samples = self.samples;
 
@@ -239,18 +244,18 @@ CWDecoder.prototype = {
 		var a    = samples.index, tone = self.downSampleRate / (2 * Math.PI * self.targetTone);
 		for (var i = 0, len = samples.length; i < len; i++) {
 			var nn = samples[(samples.length + samples.index - i) % samples.length];
-			q[len - i] = Math.sin(a / tone) * nn;
-			p[len - i] = Math.cos(a / tone) * nn;
+			q[len - i] = (Math.sin(a / tone) > 0 ? 1 : -1) * nn;
+			p[len - i] = (Math.cos(a / tone) > 0 ? 1 : -1) * nn;
 			a--;
 		}
 
-		var filter = new IIRFilter2(DSP.LOWPASS, 20, 0, self.downSampleRate);
+		var filter = new IIRFilter2(DSP.LOWPASS, 18, 0, self.downSampleRate);
 		filter.process(q);
 		filter.process(p);
 
 		// さらにダウンサンプリング
 		var downSampledUnread = 0;
-		for (var i = 0, x = 0, len = q.length; i < len; i += DOWNSAMPLING_FACTOR2, x++) {
+		for (var i = 0, x = 0, len = q.length; i < len; i += self.DOWNSAMPLING_FACTOR2, x++) {
 			q[x] = q[i];
 			p[x] = p[i];
 			if (i < unread) {
@@ -260,23 +265,25 @@ CWDecoder.prototype = {
 		q = q.subarray(0, x);
 		p = p.subarray(0, x);
 
-		// 移動平均
-		var k = Math.floor(self.downSampleRate / 4 * 0.02), avgQ = 0, avgP = 0;
-		for (var i = 0, len = p.length; i < len; i += 1) {
-			avgQ -= (q[i - k] || 0) / k;
-			avgQ += q[i] / k;
-			avgP -= (p[i - k] || 0) / k;
-			avgP += p[i] / k;
-
-			q[i] = avgQ;
-			p[i] = avgP;
-		}
-
-		// 位相計算 + min/max
+//		// 移動平均
+//		var k = Math.floor(self.downSampleRate / 4 * 0.02), avgQ = 0, avgP = 0;
+//		for (var i = 0, len = p.length; i < len; i += 1) {
+//			avgQ -= (q[i - k] || 0) / k;
+//			avgQ += q[i] / k;
+//			avgP -= (p[i - k] || 0) / k;
+//			avgP += p[i] / k;
+//
+//			q[i] = avgQ;
+//			p[i] = avgP;
+//		}
+//
+		// 振幅計算 + min/max
 		// p はもう使わないので破壊的に書いている
 		var r = p, max = 0, min = Infinity;
 		for (var i = 0, len = p.length; i < len; i += 1) {
-			r[i] = Math.sqrt(q[i] * q[i] + p[i] * p[i]);
+			var m = Math.sqrt(q[i] * q[i] + p[i] * p[i]); // 振幅
+			// var pha = q[i] > 0 ? Math.atan2(p[i], q[i]) : Math.atan2(p[i], q[i]) + Math.PI; // 位相
+			r[i] = m;
 			if (max < r[i]) max = r[i];
 			if (r[i] < min) min = r[i];
 		}
@@ -320,14 +327,14 @@ CWDecoder.prototype = {
 				phase = phase ? 0 : -0.5;
 			}
 		}
-		self.drawTimeDomain(clocks, '#0000ff', 0.00003 * DOWNSAMPLING_FACTOR2 / 2);
+		self.drawTimeDomain(clocks, '#0000ff', 0.00003 * self.DOWNSAMPLING_FACTOR2 / 2);
 
 		var ctx = self.history2dContext;
 		ctx.font = "10px sans-serif";
 		ctx.textBaseline = "bottom";
 		ctx.textAlign = "left";
 		ctx.fillStyle = '#00ff00';
-		var clockSec = clock / (self.downSampleRate / DOWNSAMPLING_FACTOR2);
+		var clockSec = clock / (self.downSampleRate / self.DOWNSAMPLING_FACTOR2);
 		ctx.fillText(clock + ' clock / ' + Math.round(clockSec * 1000) + ' msec', 0, self.historyCanvas.height);
 
 		// モールスデコード
@@ -374,6 +381,7 @@ CWDecoder.prototype = {
 		}
 
 		self.decoded = self.decoded.concat(results);
+		while (self.decoded.length > 100) self.decoded.shift();
 
 		var drawMap = {};
 		for (var i = 0, it; (it = self.decoded[i]); i++) {
@@ -495,6 +503,7 @@ CWDecoder.prototype = {
 		var osc = self.context.createOscillator();
 		var main = self.context.createScriptProcessor(8192, 1, 1);
 		var gain = self.context.createGain();
+		gain.gain.value = 0.3;
 
 		main.onaudioprocess = function (e) {
 			var inputData = e.inputBuffer.getChannelData(0);
@@ -538,6 +547,28 @@ CWDecoder.prototype = {
 
 					self.unit  = self.context.sampleRate * (50 / 1000);
 					self.tone = self.context.sampleRate / (2 * Math.PI * 400);
+					var source = self.context.createBufferSource();
+					source.buffer = self.createToneBuffer(code);
+					source.connect(gain);
+					source.start(0);
+					t = source.buffer.length / self.context.sampleRate * 1000;
+
+					next();
+				}, t + (Math.random() * 1000));
+			})();
+		})();
+
+		(function () {
+			var t = Math.random() * 3000;
+			(function next () {
+				setTimeout(function () {
+					var code = '';
+					for (var i = 0; i < Math.random() * 10; i++) {
+						code += String.fromCharCode(65 + Math.random() * 25);
+					}
+
+					self.unit  = self.context.sampleRate * (35 / 1000);
+					self.tone = self.context.sampleRate / (2 * Math.PI * 800);
 					var source = self.context.createBufferSource();
 					source.buffer = self.createToneBuffer(code);
 					source.connect(gain);
