@@ -32,17 +32,23 @@ CWDecoder.prototype = {
 		self.historyCanvas = document.getElementById('history');
 		self.history2dContext = self.historyCanvas.getContext('2d');
 
+		self.logElement = $('#log');
+
 		self.context = new AudioContext();
 
 		// 4kHz 程度でサンプリングすれば十分カバーできるのでダウンサンプリングする
 		self.DOWNSAMPLING_FACTOR = 10;
-		self.SAMPLES_BUFFER_LENGTH = 8; // sec
-		self.FFT_SIZE = 1024;
+		self.SAMPLES_BUFFER_LENGTH = 10; // sec
+		self.FFT_SIZE = 2048;
 
 		// ローパスをかけたあとのダウンサンプリング
 		self.DOWNSAMPLING_FACTOR2 = 4;
 
 		self.downSampleRate     = self.context.sampleRate / self.DOWNSAMPLING_FACTOR;
+		self.resultsSampleRate  = self.downSampleRate / self.DOWNSAMPLING_FACTOR2;
+		self.log('downSampleRate: %s, resultsSampleRate: %s', self.downSampleRate, self.resultsSampleRate);
+
+		self.lastSampledTime = 0;
 
 		// 循環バッファ
 		self.samples = new Float32Array(self.downSampleRate * self.SAMPLES_BUFFER_LENGTH);
@@ -50,19 +56,89 @@ CWDecoder.prototype = {
 		self.samples.index = 0;
 
 		self.FFT = new FFT(self.FFT_SIZE, self.downSampleRate);
+		self.fftOffset = 0;
 		self.fftBuffer = new Float32Array(self.FFT_SIZE);
-		console.log(['FFT Band Width:', self.FFT.bandwidth]);
+		self.spectrum = new Float32Array(self.FFT_SIZE / 2);
+		self.log('FFT Band Width: %s', self.FFT.bandwidth);
 
-		self.targetTone = 600;
+		self.targetTone = 0;
+		self.targetMode = 'auto';
 
 		self.offset = 0;
 
-		self.clockHistory = [50, 50, 50, 50, 50, 50, 50, 50, 50, 50];
+		self.clockHistory = [];
+		self.clock = Infinity;
 		self.peakBandHistory = [];
+		self.spectrumHistory = [];
 
 		self.decoded = [];
+		self.prev = {
+			r : [],
+			d : [],
+			remain : 0,
+			downSampledUnread: 0,
+			time : 0
+		};
 
+		self.bindEvents();
 		self.setConfig(config);
+	},
+
+	log : function (format) {
+		var self = this;
+
+		self.decodedTextElement = null;
+		var args = Array.prototype.slice.call(arguments, 1);
+
+		var text = format.replace(/%s/g, function () {
+			return args.shift();
+		});
+
+		var log = $('<p/>').hide().text(text).show('fast');
+
+		self.logElement.append(log);
+		self.logElement.scrollTop(self.logElement[0].scrollHeight);
+	},
+
+	addChars : function (results) {
+		var self = this;
+
+		if (!self.decodedTextElement) {
+			newLine();
+		}
+
+		for (var i = 0, it; (it = results[i]); i++) {
+			if (it.char === '.-.-') {
+				self.decodedTextElement.append(' ');
+				self.decodedTextElement.append($('<span style="text-decoration: overline">AA</span>'));
+				newLine();
+				continue;
+			}
+			if (it.char === '=') {
+				self.decodedTextElement.append('=');
+				newLine();
+				continue;
+			}
+			self.decodedTextElement.append(it.char);
+		}
+
+		self.logElement.scrollTop(self.logElement[0].scrollHeight);
+
+		function newLine () {
+			self.decodedTextElement = $('<p> >>> </p>').appendTo(self.logElement);
+		}
+	},
+
+	bindEvents : function () {
+		var self = this;
+
+		$(self.freqCanvas).click(function (e) {
+			var x = e.pageX - $(this).offset().left;
+			self.targetTone = self.FFT.getBandFrequency(x);
+			self.targetMode = 'fixed';
+			self.resetDecodeData();
+			self.log('Lock on targetTone: %s', self.targetTone);
+		});
 	},
 
 	setConfig : function (config) {
@@ -139,6 +215,7 @@ CWDecoder.prototype = {
 			}
 			samplingCount = samplingCount - len; // はみだしたぶんを次回へ
 			samples.index = samples.index % samples.length;
+			self.lastSampledTime = new Date().getTime();
 			processor.onaudioprocess = arguments.callee; // なんかセットしないと止まることがある
 		};
 		source.connect(lowpass);
@@ -153,20 +230,31 @@ CWDecoder.prototype = {
 				return;
 			}
 
-			self.freq2dContext.fillStyle = '#000000';
-			self.freq2dContext.fillRect(0, 0, self.freqCanvas.width, self.freqCanvas.height);
-
-			self.history2dContext.fillStyle = '#000000';
-			self.history2dContext.fillRect(0, 0, self.historyCanvas.width, self.historyCanvas.width);
-
-			self.executeFFT();
+			self.executeFFT(unread);
 			self.updateTargetTone();
 
 			self.drawSpectrum();
 			self.processDecode(unread);
 
 			unread = 0;
-		}, 250);
+		}, 200);
+
+		setTimeout(function () {
+			self.history2dContext.fillStyle = '#000000';
+			self.history2dContext.fillRect(0, 0, self.historyCanvas.width, self.historyCanvas.width);
+			self.drawWaveForm();
+
+			// requestAnimationFrame(arguments.callee);
+			setTimeout(arguments.callee, 100);
+		}, 100);
+	},
+
+	resetDecodeData : function () {
+		var self = this;
+		self.decoded = [];
+		self.clockHistory = [];
+		self.clock = Infinity;
+		self.offset  = self.resultsSampleRate * self.SAMPLES_BUFFER_LENGTH;
 	},
 
 	updateTargetTone : function () {
@@ -177,9 +265,9 @@ CWDecoder.prototype = {
 		 */
 
 		// TODO: 平均から離れて大きいほど選択されやすくなるようにしたい
-		var frequency = self.FFT.getBandFrequency(self.FFT.peakBand);
+		var frequency = self.FFT.getBandFrequency(self.peakBand);
 		// 300Hz - 1200Hz 以外は無視する
-		if (frequency < 300 || 1200 < frequency) {
+		if (isNaN(frequency) || frequency < 300 || 1200 < frequency) {
 			return;
 		}
 
@@ -188,31 +276,171 @@ CWDecoder.prototype = {
 
 		var avg = 0;
 		for (var i = 0, len = self.peakBandHistory.length; i < len; i++) {
-			avg += self.peakBandHistory[i] / len;
+			avg += self.peakBandHistory[i];
+		}
+		avg = avg / self.peakBandHistory.length;
+
+		if (self.peakBandHistory.length < 5) return;
+
+		if (!self.targetTone) {
+			self.targetTone = avg;
+			self.log('Initialized targetTone: %s', self.targetTone);
 		}
 
+		// ピークトーン・中心周波数をさがして動く
+		var nearPeak = 0, nearPeakBand;
+		for (var i = 0, len = 10; i < len; i++) {
+			var index = Math.floor(Math.floor(self.targetTone / self.FFT.bandwidth) - (len / 2) + i);
+			var n = self.spectrum[index] || 0;
+			if (nearPeak < n) {
+				nearPeak = n;
+				nearPeakBand = index;
+			}
+		}
+		nearPeakBand = self.FFT.getBandFrequency(nearPeakBand);
+
+		if (nearPeakBand !== self.targetTone) {
+			console.log('Tracking targetTone: %s -> %s', self.targetTone, nearPeakBand);
+			self.targetTone = nearPeakBand;
+			return;
+		}
+
+		if (self.targetMode === 'fixed') return;
+
+		// ピーク周波数の移動平均と現在のピークが一定の差になったら対象周波数を変える
 		if (Math.abs(frequency - avg) < 10 && self.targetTone !== frequency) {
-			console.log(['tracking changed targetTone', self.targetTone, '->', frequency]);
+			self.log('Changing targetTone: %s -> %s', self.targetTone, frequency);
 			self.targetTone = frequency;
+			self.resetDecodeData();
 		}
 	},
 
-	drawTimeDomain : function (data, color, scaleFactor) {
-		if (!scaleFactor) scaleFactor = 0.00003;
-
+	drawWaveForm : function () {
 		var self = this;
 		var w = self.historyCanvas.width, h = self.historyCanvas.height;
-
 		var ctx = self.history2dContext;
+		var now = new Date().getTime();
 
-		ctx.strokeStyle = color;
+		ctx.save();
+
+		// 元
+		var scale1 = w / self.samples.length;
+		ctx.translate(-(self.downSampleRate * ((now - self.lastSampledTime) / 1000 )) * scale1, 0);
 		ctx.beginPath();
-		ctx.moveTo(0, h / 2);
-		var unit = self.downSampleRate * scaleFactor;
-		for (var i = 0, len = data.length; i < len; i++) {
-			ctx.lineTo(i * unit, h - (data[i] * (h / 2) + (h / 2)));
+		ctx.moveTo(w, h / 2);
+		ctx.strokeStyle = '#333333';
+		for (var i = 0, samples = self.samples, len = self.samples.length; i < len; i++) {
+			var nn = samples[(samples.length + samples.index - i) % samples.length];
+			ctx.lineTo(
+				w - (i * scale1),
+				h - (nn * (h / 2) + (h / 2))
+			);
 		}
 		ctx.stroke();
+
+		ctx.restore();
+
+		ctx.save();
+
+		var td = (now - self.prev.time) / 1000;
+		var scale = w / self.prev.d.length;
+		var tdSamples = self.resultsSampleRate * td;
+		var step = Math.floor(1 / scale);
+
+		ctx.fillStyle = '#333333';
+		for (var i = 0; i < 10; i++) {
+			var n = i * self.resultsSampleRate;
+			ctx.fillRect(w - (n * scale), 0, 1, h);
+		}
+
+		ctx.translate(-tdSamples * scale, 0);
+
+		function drawTimeDomain (data, color) {
+			ctx.strokeStyle = color;
+			ctx.beginPath();
+			ctx.moveTo(0, h / 2);
+			for (var i = 0, len = data.length; i < len; i++) {
+				ctx.lineTo(i * scale, h - (data[i] * (h / 2) + (h / 2)));
+			}
+			ctx.stroke();
+		}
+
+		drawTimeDomain(self.prev.r, '#ffffff');
+
+		// draw digital
+		var data = self.prev.d;
+
+		ctx.font = "10px sans-serif";
+		ctx.textBaseline = "top";
+		ctx.textAlign = "right";
+		ctx.fillStyle = '#ffffff';
+
+		var prevX = 0, prevY = h / 2;
+
+		ctx.beginPath();
+		ctx.strokeStyle = '#00cc00';
+		ctx.moveTo(prevX * scale, prevY);
+		for (var i = 0, len = data.length - self.prev.remain; i < len; i += step) {
+			prevX = i; prevY = h - (data[i] * (h / 2) + (h / 2));
+			ctx.lineTo(prevX * scale, prevY);
+		}
+		ctx.stroke();
+
+		ctx.beginPath();
+		ctx.strokeStyle = '#00cccc';
+		ctx.moveTo(prevX * scale, prevY);
+		for (var i = data.length - self.prev.remain, len = data.length - self.prev.downSampledUnread; i < len; i += step) {
+			prevX = i; prevY = h - (data[i] * (h / 2) + (h / 2));
+			ctx.lineTo(prevX * scale, prevY);
+		}
+		ctx.stroke();
+
+		ctx.beginPath();
+		ctx.strokeStyle = '#ff0000';
+		ctx.moveTo(prevX * scale, prevY);
+		for (var i = data.length - self.prev.downSampledUnread, len = data.length; i < len; i += step) {
+			prevX = i; prevY = h - (data[i] * (h / 2) + (h / 2));
+			ctx.lineTo(prevX * scale, prevY);
+		}
+		ctx.stroke();
+
+		// draw clocks
+		var clocks = new Float32Array(self.prev.d.length);
+		for (var i = 0, phase = 0, len = clocks.length; i < len; i++) {
+			clocks[i] = phase;
+			if (i % self.clock === 0) {
+				phase = phase ? 0 : -0.5;
+			}
+		}
+		drawTimeDomain(clocks, '#0000ff');
+
+		// draw chars
+		var drawMap = {};
+		for (var i = 0, it; (it = self.decoded[i]); i++) {
+			drawMap[it.index] = it;
+		}
+
+		for (var i = 0, len = data.length; i < len; i++) {
+			if (drawMap[i]) {
+				var char = drawMap[i];
+				ctx.fillText(char.char, i * scale, h / 2 + 20);
+			}
+		}
+
+		ctx.restore();
+
+		ctx.font = "10px sans-serif";
+		ctx.textBaseline = "bottom";
+		ctx.textAlign = "left";
+		ctx.fillStyle = '#00ff00';
+		var clockSec = self.clock / (self.downSampleRate / self.DOWNSAMPLING_FACTOR2);
+		var cpm = Math.round(6000 / (clockSec * 1.3 *  1000));
+		var wpm = Math.round(cpm / 5);
+		ctx.fillText(
+			self.clock + ' clock / ' + Math.round(clockSec * 1000) + ' msec / ' + wpm + ' wpm / ' + cpm + ' cpm',
+			0, 
+			self.historyCanvas.height
+		);
 	},
 
 	processDecode : function (unread) {
@@ -222,14 +450,15 @@ CWDecoder.prototype = {
 		 * 1. 2位相ロックインフィルタ(ローパスを含む)で対象周波数を直流化しノイズを除去
 		 *    1. 対象周波数を位相を90度かえて別々に合成
 		 *    2. それぞれにローパスにかける
-		 *    3. 移動平均をとって突発的なパルスノイズを念のため除去する
-		 *    3. 三平方の定理に従って合成しなおす
+		 *    3. 2位相を三平方の定理に従って合成しなおす
 		 * 2. 2値化
 		 *    1. 直近の min max から適当に閾値を算出
 		 *    2. それに従って2値化
 		 * 3. モールスのクロック検知
+		 *    1. 0/1 の間隔で一番小さいものをクロックとする
 		 * 4. モールスのデコード
 		 *    1. クロックを参照しながら . と - を合成していく
+		 *       クロックの2倍以上の長さなら長点扱いにする。
 		 *    2. 符号表から文字にデコード
 		 *
 		 */
@@ -241,15 +470,15 @@ CWDecoder.prototype = {
 		// ターゲットの周波数成分を直流化する
 		var q = new Float32Array(samples.length);
 		var p = new Float32Array(samples.length);
-		var a    = samples.index, tone = self.downSampleRate / (2 * Math.PI * self.targetTone);
-		for (var i = 0, len = samples.length; i < len; i++) {
+		var tone = self.downSampleRate / (2 * Math.PI * self.targetTone);
+		for (var i = 0, a = samples.index, len = samples.length; i < len; i++) {
 			var nn = samples[(samples.length + samples.index - i) % samples.length];
 			q[len - i] = (Math.sin(a / tone) > 0 ? 1 : -1) * nn;
 			p[len - i] = (Math.cos(a / tone) > 0 ? 1 : -1) * nn;
 			a--;
 		}
 
-		var filter = new IIRFilter2(DSP.LOWPASS, 18, 0, self.downSampleRate);
+		var filter = new IIRFilter2(DSP.LOWPASS, 15, 0, self.downSampleRate);
 		filter.process(q);
 		filter.process(p);
 
@@ -311,64 +540,54 @@ CWDecoder.prototype = {
 		lengths.pop(); lengths.shift();
 
 		self.clockHistory.push(Math.min.apply(null, lengths));
-		self.clockHistory.shift();
+		while (self.clockHistory.length > 5) self.clockHistory.shift();
 
 		var clock = 0;
 		for (var i = 0, len = self.clockHistory.length; i < len; i++) {
-			clock += self.clockHistory[i] / len;
+			clock += self.clockHistory[i];
 		}
-		clock = Math.ceil(clock);
+		self.clock = Math.ceil(clock / len);
+		if (self.clock < 25) self.clock = 25;
 
-		// クロックレンダリング
-		var clocks = new Float32Array(d.length);
-		for (var i = 0, phase = 0, len = clocks.length; i < len; i++) {
-			clocks[i] = phase;
-			if (i % clock === 0) {
-				phase = phase ? 0 : -0.5;
-			}
-		}
-		self.drawTimeDomain(clocks, '#0000ff', 0.00003 * self.DOWNSAMPLING_FACTOR2 / 2);
-
-		var ctx = self.history2dContext;
-		ctx.font = "10px sans-serif";
-		ctx.textBaseline = "bottom";
-		ctx.textAlign = "left";
-		ctx.fillStyle = '#00ff00';
-		var clockSec = clock / (self.downSampleRate / self.DOWNSAMPLING_FACTOR2);
-		ctx.fillText(clock + ' clock / ' + Math.round(clockSec * 1000) + ' msec', 0, self.historyCanvas.height);
-
-		// モールスデコード
-		var results = [];
 		var remain = self.offset + downSampledUnread;
-		var start = d.length - remain;
-		for (var i = start, code = "", on = 0, off = 0, len = d.length; i < len; i++) {
-			if (!d[i]) {
-				if (on > clock * 2) {
-					code += '-';
-				} else
-				if (on) {
-					code += '.';
-				}
+		var results = [];
 
-				on = 0;
-				off++;
-
-				if (off > clock * 7) {
-					// results.push(' ');
-				} else
-				if (off > clock * 3) {
-					if (code) {
-						self.offset = len - i;
-						results.push({
-							index: i - (3 * clock),
-							char : Morse.reverse[code] || code
-						});
-						code = '';
+		if (self.clockHistory.length >= 5) {
+			// モールスデコード
+			var start = d.length - remain;
+			if (start < 0) start = 0;
+			for (var i = start, code = "", on = 0, off = 0, len = d.length; i < len; i++) {
+				if (!d[i]) {
+					if (on > self.clock * 2) {
+						code += '-';
+					} else
+					if (on) {
+						code += '.';
 					}
+
+					on = 0;
+					off++;
+
+					if (off > self.clock * 7) {
+						results.push({
+							index: -1,
+							char : ' '
+						});
+					} else
+					if (off > self.clock * 3) {
+						if (code) {
+							self.offset = len - i;
+							results.push({
+								index: i - (3 * self.clock),
+								char : Morse.reverse[code] || code
+							});
+							code = '';
+						}
+					}
+				} else {
+					off = 0;
+					on++;
 				}
-			} else {
-				off = 0;
-				on++;
 			}
 		}
 
@@ -380,83 +599,76 @@ CWDecoder.prototype = {
 			it.index -= downSampledUnread;
 		}
 
-		self.decoded = self.decoded.concat(results);
-		while (self.decoded.length > 100) self.decoded.shift();
+		self.addChars(results);
 
-		var drawMap = {};
+		self.decoded = self.decoded.concat(results);
 		for (var i = 0, it; (it = self.decoded[i]); i++) {
-			drawMap[it.index] = it;
+			if (it.char === ' ' && (self.decoded[i-1] || {}).char === ' ') {
+				self.decoded.splice(i--, 1);
+			}
 		}
 
-		self.drawTimeDomain(r, '#ffffff');
-		// self.drawTimeDomain(d, '#ff0000');
+		while (self.decoded.length > 1000) self.decoded.shift();
 
-		(function (data, color, scaleFactor) {
-			if (!scaleFactor) scaleFactor = 0.00003;
-
-			var w = self.historyCanvas.width, h = self.historyCanvas.height;
-
-			var ctx = self.history2dContext;
-
-			var unit = self.downSampleRate * scaleFactor;
-
-			ctx.font = "10px sans-serif";
-			ctx.textBaseline = "top";
-			ctx.textAlign = "right";
-			ctx.fillStyle = '#ffffff';
-			ctx.strokeStyle = color;
-
-			var prevX = 0, prevY = h / 2;
-
-			ctx.beginPath();
-			ctx.strokeStyle = '#00cc00';
-			ctx.moveTo(prevX, prevY);
-			for (var i = 0, len = data.length - remain; i < len; i++) {
-				prevX = i * unit; prevY = h - (data[i] * (h / 2) + (h / 2));
-				ctx.lineTo(prevX, prevY);
-
-			}
-			ctx.stroke();
-
-			ctx.beginPath();
-			ctx.strokeStyle = '#00cccc';
-			ctx.moveTo(prevX, prevY);
-			for (var i = data.length - remain, len = data.length - downSampledUnread; i < len; i++) {
-				prevX = i * unit; prevY = h - (data[i] * (h / 2) + (h / 2));
-				ctx.lineTo(prevX, prevY);
-			}
-			ctx.stroke();
-
-			ctx.beginPath();
-			ctx.strokeStyle = '#ff0000';
-			ctx.moveTo(prevX, prevY);
-			for (var i = data.length - downSampledUnread, len = data.length; i < len; i++) {
-				prevX = i * unit; prevY = h - (data[i] * (h / 2) + (h / 2));
-				ctx.lineTo(prevX, prevY);
-			}
-			ctx.stroke();
-
-			for (var i = 0, len = data.length; i < len; i++) {
-				if (drawMap[i]) {
-					var char = drawMap[i];
-					ctx.fillText(char.char, i * unit, h / 2 + 20);
-				}
-			}
-		})(d);
+		self.prev.r = r;
+		self.prev.d = d;
+		self.prev.remain = remain;
+		self.prev.downSampledUnread = downSampledUnread;
+		self.prev.time = new Date().getTime();
 	},
 
-	executeFFT : function () {
+	executeFFT : function (unread) {
 		var self = this;
 
 		var samples = self.samples;
 		var buffer  = self.fftBuffer;
 
-		for (var i = 0, len = self.FFT_SIZE; i < len; i++) {
-			var n = (samples.length + (samples.index - len) - i) % samples.length;
-			// Hamming window function
-			buffer[i] = (0.54 - 0.46 * Math.cos(2 * Math.PI * (i / len))) * samples[n];
+		var remainSamples = unread - self.fftOffset;
+		var startIndex    = (samples.length + (samples.index - remainSamples)) % samples.length;
+
+		// console.log(['remainSamples', remainSamples, 'startIndex', startIndex]);
+
+		for (var r = 0; r < remainSamples; r += self.FFT_SIZE) {
+			for (var i = 0, len = self.FFT_SIZE; i < len; i++) {
+				var n = (startIndex + r + i) % samples.length;
+
+				// Hann window function
+				buffer[i] = (0.5 * (1 - Math.cos( (2 * Math.PI * i) / (len - 1) )) ) * samples[n];
+
+				// Hamming window function
+				// buffer[i] = (0.54 - 0.46 * Math.cos( (2 * Math.PI * i) / (len - 1) )) * samples[n];
+
+//				// Flat top window function
+//				buffer[i] = (
+//					1 -
+//					1.93  * Math.cos( (2 * Math.PI * i) / (len - 1) ) +
+//					1.29  * Math.cos( (4 * Math.PI * i) / (len - 1) ) -
+//					0.388 * Math.cos( (6 * Math.PI * i) / (len - 1) ) +
+//					0.028 * Math.cos( (8 * Math.PI * i) / (len - 1) )
+//				) * samples[n];
+			}
+			self.FFT.forward(buffer);
+
+			self.spectrumHistory.push(new Float32Array(self.FFT.spectrum));
+			while (self.spectrumHistory.length > 20) self.spectrumHistory.shift();
 		}
-		self.FFT.forward(buffer);
+
+		var peak = 0, peakBand;
+		for (var i = 0, len = self.spectrum.length; i < len; i++) {
+			var sum = 0;
+			for (var j = 0, it; (it = self.spectrumHistory[j]); j++) {
+				sum += it[i];
+			}
+			var avg = sum / self.spectrumHistory.length;
+			self.spectrum[i] = avg;
+			if (avg > peak) {
+				peakBand = i;
+				peak = avg;
+			}
+		}
+
+		self.peakBand = peakBand;
+		self.peak = peak;
 	},
 
 	drawSpectrum : function () {
@@ -467,17 +679,28 @@ CWDecoder.prototype = {
 		var ctx = self.freq2dContext;
 		ctx.strokeStyle = '#ffffff';
 
-		// console.log(['fftPeak', fft.getBandFrequency(fft.peakBand), 'fftPeak', fft.peak]);
+		var factor = 100;
+
+		ctx.fillStyle = '#000000';
+		ctx.fillRect(0, 0, w, h);
+
+		ctx.fillStyle = '#cccccc';
 		for (var i = 0, len = self.FFT.spectrum.length; i < len; i++) {
-			// var m = fft.spectrum[i] * 10000;
 			// dB
-			var m = 20 * (Math.log(self.FFT.spectrum[i]) / Math.LN10);
+			var m = 20 * (Math.log(self.FFT.spectrum[i]) / Math.LN10); // no warnings
+			ctx.fillRect(i, 0, 1, -m * (h / factor));
+		}
+
+		// console.log(['fftPeak', fft.getBandFrequency(fft.peakBand), 'fftPeak', fft.peak]);
+		for (var i = 0, len = self.spectrum.length; i < len; i++) {
+			// dB
+			var m = 20 * (Math.log(self.spectrum[i]) / Math.LN10); // no warnings
 			if (self.targetTone == self.FFT.getBandFrequency(i)) {
 				ctx.fillStyle = '#ff0000';
 			} else {
 				ctx.fillStyle = '#ffffff';
 			}
-			ctx.fillRect(i, 0, 1, -m * (h / 100));
+			ctx.fillRect(i, 0, 1, -m * (h / factor));
 		}
 
 		ctx.font = "10px sans-serif";
@@ -510,7 +733,7 @@ CWDecoder.prototype = {
 			var outputData = e.outputBuffer.getChannelData(0);
 			for (var i = 0, len = inputData.length; i < len; i++) {
 				var white = Math.random() * 2 - 1;
-				outputData[i] = white * 1.5;
+				outputData[i] = white * 2;
 			}
 		};
 
@@ -631,7 +854,7 @@ CWDecoder.prototype = {
 						sequence.push(-n);
 					}
 				}
-				n = 3 * self.config.word_spacing * self.unit;
+				n = 3 * self.config.character_spacing * self.unit;
 				length += n;
 				sequence.push(-n);
 			}

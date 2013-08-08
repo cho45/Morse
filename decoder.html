@@ -10,6 +10,14 @@
 		<script type="text/javascript" src="morse.js"></script>
 		<script type="text/javascript" src="decoder.js"></script>
 		<style>
+			html, body {
+				margin: 0;
+				padding: 0;
+				background: #000;
+				color: #fff;
+				line-height: 1.66;
+			}
+
 			table {
 				border-collapse: collapse;
 				border-spacing: 0;
@@ -20,16 +28,28 @@
 				margin: 0;
 				padding: 0;
 			}
+
+			p {
+				margin: 0 auto;
+				width: 1024px;
+			}
+
+			#log {
+				height: 100px;
+				overflow: auto;
+				margin: 0 auto;
+				width: 1024px;
+				padding: 10px 0;
+			}
 		</style>
 	</head>
 	<body>
-		<table>
-			<tr>
-				<td><canvas id="freq" width="512" height="200"></canvas></td>
-			</tr>
-			<tr>
-				<td><canvas id="history" width="1160" height="400"></canvas></td>
-			</tr>
-		</table>
+		<p>
+			<canvas id="freq" width="1024" height="200"></canvas>
+		</p>
+		<p>
+			<canvas id="history" width="1024" height="200"></canvas>
+		</p>
+		<div id="log"></div>
 	</body>
 </html>
