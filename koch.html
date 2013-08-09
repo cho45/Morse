@@ -30,6 +30,10 @@
 				line-height: 1.5;
 			}
 
+			pre {
+				font-family: "Monaco", monospace;
+			}
+
 			#a.success {
 				color: #0c0;
 			}
@@ -118,50 +122,29 @@
 			</table>
 		</div>
 
-		<!--
-		<p id="buttons">
-			<input type="button" class="answer" value="A"/>
-			<input type="button" class="answer" value="B"/>
-			<input type="button" class="answer" value="C"/>
-			<input type="button" class="answer" value="D"/>
-			<input type="button" class="answer" value="E"/>
-			<input type="button" class="answer" value="F"/>
-			<input type="button" class="answer" value="G"/>
-			<input type="button" class="answer" value="H"/>
-			<input type="button" class="answer" value="I"/>
-			<input type="button" class="answer" value="J"/>
-			<input type="button" class="answer" value="K"/>
-			<input type="button" class="answer" value="L"/>
-			<input type="button" class="answer" value="M"/>
-			<input type="button" class="answer" value="N"/>
-			<input type="button" class="answer" value="O"/>
-			<input type="button" class="answer" value="P"/>
-			<input type="button" class="answer" value="Q"/>
-			<input type="button" class="answer" value="R"/>
-			<input type="button" class="answer" value="S"/>
-			<input type="button" class="answer" value="T"/>
-			<input type="button" class="answer" value="U"/>
-			<input type="button" class="answer" value="V"/>
-			<input type="button" class="answer" value="W"/>
-			<input type="button" class="answer" value="X"/>
-			<input type="button" class="answer" value="Y"/>
-			<input type="button" class="answer" value="Z"/>
-
-			<input type="button" class="answer" value="0"/>
-			<input type="button" class="answer" value="1"/>
-			<input type="button" class="answer" value="2"/>
-			<input type="button" class="answer" value="3"/>
-			<input type="button" class="answer" value="4"/>
-			<input type="button" class="answer" value="5"/>
-			<input type="button" class="answer" value="6"/>
-			<input type="button" class="answer" value="7"/>
-			<input type="button" class="answer" value="8"/>
-			<input type="button" class="answer" value="9"/>
-		</p>
-		-->
-
 		<p>
 			<a href="#" id="levelup">Level Up</a>
 		</p>
+
+		<hr />
+
+		<form id="config">
+			<p>
+				<label for="speed">Speed: (<span id="speed-label"></span>)</label>
+				<input type="range" min="15" max="60" value="20" step="1" name="speed" id="speed"/>
+			</p>
+			<p>
+				<label for="character-spacing">Character Spacing Factor: (<span id="character-spacing-label"></span>)</label>
+				<input type="range" min="1" max="3" value="1.5" step="0.1" name="character-spacing" id="character-spacing"/>
+			</p>
+			<p>
+				<label for="word-spacing">Word Spacing Factor: (<span id="word-spacing-label"></span>)</label>
+				<input type="range" min="1" max="5" value="1.5" step="0.1" name="word-spacing" id="word-spacing"/>
+			</p>
+			<p>
+				<label for="tone">Tone: (<span id="tone-label"></span>)</label>
+				<input type="range" min="300" max="900" value="600" step="100" name="tone" id="tone"/>
+			</p>
+		</form>
 	</body>
 </html>

@@ -133,12 +133,12 @@ KochMethod.prototype = {
 						sequence.push(n);
 					}
 					if (j < mlen - 1) {
-						n = 1 * self.config.character_spacing * self.unit;
+						n = 1 * self.unit;
 						length += n;
 						sequence.push(-n);
 					}
 				}
-				n = 3 * self.config.word_spacing * self.unit;
+				n = 3 * self.config.character_spacing * self.unit;
 				length += n;
 				sequence.push(-n);
 			}
@@ -157,7 +157,7 @@ KochMethod.prototype = {
 				}
 			} else {
 				for (var p = 0; p < s; p++) {
-					data[x++] = Math.sin(p / self.tone);
+					data[x++] = Math.sin(p / self.tone) * 0.6;
 				}
 				// remove ticking (fade)
 				for (var f = 0, e = self.context.sampleRate * 0.005; f < e; f++) {
@@ -186,12 +186,12 @@ $(function () {
 	var config = {
 		level: +location.search.substring(1) || 2,
 		word : [5, 5], // 5~5 chars
-		character_spacing : 1.25,
-		word_spacing: 2.5,
+		character_spacing : 2,
+		word_spacing: 2.0,
 		tone: 600,
 		// time: 10, // sec
 		time: 60, // sec
-		wpm: 23
+		wpm: 22
 	};
 
 	var koch = new KochMethod(config);
@@ -213,6 +213,7 @@ $(function () {
 		$answerInput.empty();
 		$answerAnswer.empty();
 		$input.val('').show().focus();
+		$start.attr('disabled', 'disabled');
 
 		setTimeout(function () {
 			var start = new Date();
@@ -233,7 +234,7 @@ $(function () {
 				$input.hide();
 				var inputs = $input.val().split(/\s+/);
 
-				var inputsJoined = inputs.join("\n");
+				var inputsJoined = inputs.join("\n").replace(/^\s+|\s+$/g, '').toUpperCase();
 				var answersJoined = answers.join("\n");
 
 				var dmp = new diff_match_patch();
@@ -272,6 +273,7 @@ $(function () {
 
 				$answer.show();
 				$buttons.hide();
+				$start.removeAttr('disabled');
 			}).
 			error(function (e) {
 				alert(e);
@@ -284,6 +286,51 @@ $(function () {
 			$input.val($input.val() + e.target.value);
 		}
 	});
+
+	$('#speed').change(function () {
+		var wpm = +$(this).val();
+		var cpm = wpm * 5;
+
+		koch.config.wpm = wpm;
+		koch.setConfig(koch.config);
+
+		localStorage.wpm = wpm;
+
+		$('#speed-label').text(
+			wpm + 'wpm ' + 
+			cpm + 'cpm'
+		);
+	}).val(localStorage.wpm || 20).change();
+
+	$('#character-spacing').change(function () {
+		var val = +$(this).val();
+
+		koch.config.character_spacing = val;
+		koch.setConfig(koch.config);
+		localStorage.character_spacing = val;
+
+		$('#character-spacing-label').text('x' + val.toFixed(1));
+	}).val(localStorage.character_spacing || 2.0).change();
+
+	$('#word-spacing').change(function () {
+		var val = +$(this).val();
+
+		koch.config.word_spacing = val;
+		koch.setConfig(koch.config);
+		localStorage.word_spacing = val;
+
+		$('#word-spacing-label').text('x' + val.toFixed(1));
+	}).val(localStorage.word_spacing || 2.0).change();
+
+	$('#tone').change(function () {
+		var val = +$(this).val();
+
+		koch.config.tone = val;
+		koch.setConfig(koch.config);
+		localStorage.tone = val;
+
+		$('#tone-label').text(val + 'Hz');
+	}).val(localStorage.tone || 600).change();
 
 	window.play = function (chars) {
 		koch.play(chars);
