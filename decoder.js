@@ -55,6 +55,11 @@ CWDecoder.prototype = {
 		// 循環バッファ次に書きこむインデックス
 		self.samples.index = 0;
 
+		// processDecode
+		self.q = new Float32Array(self.samples.length);
+		self.p = new Float32Array(self.samples.length);
+		self.lpf = new IIRFilter2(DSP.LOWPASS, 15, 0, self.downSampleRate);
+
 		self.FFT = new FFT(self.FFT_SIZE, self.downSampleRate);
 		self.fftOffset = 0;
 		self.fftBuffer = new Float32Array(self.FFT_SIZE);
@@ -119,6 +124,11 @@ CWDecoder.prototype = {
 				newLine();
 				continue;
 			}
+			if (it.char === '+') {
+				self.decodedTextElement.append('+');
+				newLine();
+				continue;
+			}
 			self.decodedTextElement.append(it.char);
 		}
 
@@ -144,20 +154,6 @@ CWDecoder.prototype = {
 	setConfig : function (config) {
 		var self = this;
 		self.config = config;
-
-		// dot length in msec
-		self.speed = 
-			config.cpm ? 6000 / config.cpm:
-			config.wpm ? 1200 / config.wpm:
-				50;
-
-		// sampling cycle of sine wave for specific tone frequency
-		self.tone = self.context.sampleRate / (2 * Math.PI * config.tone);
-		self.unit  = self.context.sampleRate * (self.speed / 1000);
-
-		console.log(['speed', self.speed]);
-		console.log(['tone', self.tone]);
-		console.log(['unit', self.unit]);
 	},
 
 	start : function () {
@@ -245,7 +241,7 @@ CWDecoder.prototype = {
 			self.drawWaveForm();
 
 			// requestAnimationFrame(arguments.callee);
-			setTimeout(arguments.callee, 100);
+			setTimeout(arguments.callee, 200);
 		}, 100);
 	},
 
@@ -325,6 +321,8 @@ CWDecoder.prototype = {
 
 		// 元
 		var scale1 = w / self.samples.length;
+		var step1  = Math.floor(1 / scale1);
+
 		ctx.translate(-(self.downSampleRate * ((now - self.lastSampledTime) / 1000 )) * scale1, 0);
 		ctx.beginPath();
 		ctx.moveTo(w, h / 2);
@@ -468,8 +466,8 @@ CWDecoder.prototype = {
 
 		// 2位相ロックインフィルタ
 		// ターゲットの周波数成分を直流化する
-		var q = new Float32Array(samples.length);
-		var p = new Float32Array(samples.length);
+		var q = self.q;
+		var p = self.p;
 		var tone = self.downSampleRate / (2 * Math.PI * self.targetTone);
 		for (var i = 0, a = samples.index, len = samples.length; i < len; i++) {
 			var nn = samples[(samples.length + samples.index - i) % samples.length];
@@ -478,9 +476,8 @@ CWDecoder.prototype = {
 			a--;
 		}
 
-		var filter = new IIRFilter2(DSP.LOWPASS, 15, 0, self.downSampleRate);
-		filter.process(q);
-		filter.process(p);
+		self.lpf.process(q);
+		self.lpf.process(p);
 
 		// さらにダウンサンプリング
 		var downSampledUnread = 0;
@@ -684,24 +681,35 @@ CWDecoder.prototype = {
 		ctx.fillStyle = '#000000';
 		ctx.fillRect(0, 0, w, h);
 
+		ctx.fillStyle = '#ff0000';
+		ctx.fillRect(Math.floor(self.targetTone / self.FFT.bandwidth), 0, 1, h);
+
+		ctx.beginPath();
 		ctx.fillStyle = '#cccccc';
+		ctx.moveTo(0, 0);
 		for (var i = 0, len = self.FFT.spectrum.length; i < len; i++) {
 			// dB
 			var m = 20 * (Math.log(self.FFT.spectrum[i]) / Math.LN10); // no warnings
-			ctx.fillRect(i, 0, 1, -m * (h / factor));
+			// ctx.fillRect(i, 0, 1, -m * (h / factor));
+			ctx.lineTo(i, -m * (h / factor));
 		}
+		ctx.lineTo(w, 0);
+		ctx.closePath();
+		ctx.fill();
 
 		// console.log(['fftPeak', fft.getBandFrequency(fft.peakBand), 'fftPeak', fft.peak]);
+		ctx.beginPath();
+		ctx.fillStyle = '#ffffff';
+		ctx.moveTo(0, 0);
 		for (var i = 0, len = self.spectrum.length; i < len; i++) {
 			// dB
 			var m = 20 * (Math.log(self.spectrum[i]) / Math.LN10); // no warnings
-			if (self.targetTone == self.FFT.getBandFrequency(i)) {
-				ctx.fillStyle = '#ff0000';
-			} else {
-				ctx.fillStyle = '#ffffff';
-			}
-			ctx.fillRect(i, 0, 1, -m * (h / factor));
+			// ctx.fillRect(i, 0, 1, -m * (h / factor));
+			ctx.lineTo(i, -m * (h / factor));
 		}
+		ctx.lineTo(w, 0);
+		ctx.closePath();
+		ctx.fill();
 
 		ctx.font = "10px sans-serif";
 		ctx.textBaseline = "top";
@@ -716,14 +724,14 @@ CWDecoder.prototype = {
 		ctx.textBaseline = "bottom";
 		ctx.textAlign = "left";
 		ctx.fillStyle = '#ffffff';
-		ctx.fillText('Target Tone: ' + Math.round(self.targetTone) + 'Hz', 0, h);
+		ctx.fillText('Target Tone: ' + Math.round(self.targetTone) + 'Hz' + (self.targetMode == 'fixed' ? ' [Locked]' : ''), 0, h);
 	},
 
 
 	createDummy : function () {
 		var self = this;
 
-		var osc = self.context.createOscillator();
+		var osc  = self.context.createOscillator();
 		var main = self.context.createScriptProcessor(8192, 1, 1);
 		var gain = self.context.createGain();
 		gain.gain.value = 0.3;
@@ -732,9 +740,10 @@ CWDecoder.prototype = {
 			var inputData = e.inputBuffer.getChannelData(0);
 			var outputData = e.outputBuffer.getChannelData(0);
 			for (var i = 0, len = inputData.length; i < len; i++) {
-				var white = Math.random() * 2 - 1;
-				outputData[i] = white * 2;
+				var white = (Math.sqrt(-2 * Math.log(Math.random())) * Math.sin(2 * Math.PI * Math.random())) * 2 + 0;
+				outputData[i] = white;
 			}
+			main.onaudioprocess = arguments.callee;
 		};
 
 		(function () {
@@ -742,14 +751,52 @@ CWDecoder.prototype = {
 			(function next () {
 				setTimeout(function () {
 					var code = '';
-					for (var i = 0; i < 5; i++) {
+					for (var i = 0; i < Math.random() * 10; i++) {
 						code += String.fromCharCode(65 + Math.random() * 25);
 					}
 
-					self.unit  = self.context.sampleRate * (100 / 1000);
-					self.tone = self.context.sampleRate / (2 * Math.PI * 600);
 					var source = self.context.createBufferSource();
-					source.buffer = self.createToneBuffer(code);
+					source.buffer = self.createToneBuffer(code, {
+						character_spacing: 1,
+						word_spacing: 1,
+						tone : 400,
+						wpm: 25
+					});
+					source.connect(gain);
+					source.start(0);
+					t = source.buffer.length / self.context.sampleRate * 1000;
+
+					next();
+				}, t + (Math.random() * 1000));
+			})();
+		})();
+
+		(function () {
+			var t = Math.random() * 3000;
+			var seq = [
+				// http://homepage2.nifty.com/7m1lot/rs_doc_1.htm
+				'CQ CQ CQ DE JN1ZUF JN1ZUF JN1ZUF PSE +',
+				'CQ CQ CQ DE JN1ZUF JN1ZUF JN1ZUF PSE +',
+				'JN1ZUF DE 7M1LOT 7M1LOT +',
+				'7M1LOT DE JN1ZUF GM OM TNX FER CALL UR RST 599 5NN HR IN YOKOHAMA ? YOKOHAMA CITY ES NAME IS MIZ MIZ HW ? + 7M1LOT DE JN1ZUF K',
+				'JN1ZUF DE 7M1LOT GM DR MIZ OM TNX FER CMG BCK ES RPRT 599 FRM YOKOHAMA CITY UR ALSO 599 5NN HR IN MACHIDA ? MACHIDA CITY ES NAME TAD ? TAD HW ?',
+				'7M1LOT DE JN1ZUF DR TAD SAN CPI ALL = HR WX RAINY ES TEMP 15 C = WL QSL VIA BURO HW ? + 7M1LOT DE JN1ZUF K',
+				'DR MIZ TNX FER FB QSO HPE CUAGN SOON NW UR NICE DX + 7L3FGA DE JN1ZUF/1 K',
+				'DR MIZ 73 TU $ E E'
+			];
+			var i = 0;
+
+			(function next () {
+				setTimeout(function () {
+					var code = seq[i++ % seq.length];
+
+					var source = self.context.createBufferSource();
+					source.buffer = self.createToneBuffer(code, {
+						character_spacing: 1,
+						word_spacing: 1,
+						tone : 600,
+						wpm: 25
+					});
 					source.connect(gain);
 					source.start(0);
 					t = source.buffer.length / self.context.sampleRate * 1000;
@@ -768,10 +815,15 @@ CWDecoder.prototype = {
 						code += String.fromCharCode(65 + Math.random() * 25);
 					}
 
-					self.unit  = self.context.sampleRate * (50 / 1000);
-					self.tone = self.context.sampleRate / (2 * Math.PI * 400);
+					self.unit  = self.context.sampleRate * (35 / 1000);
+					self.tone = self.context.sampleRate / (2 * Math.PI * 800);
 					var source = self.context.createBufferSource();
-					source.buffer = self.createToneBuffer(code);
+					source.buffer = self.createToneBuffer(code, {
+						character_spacing: 1,
+						word_spacing: 1,
+						tone : 800,
+						wpm: 30
+					});
 					source.connect(gain);
 					source.start(0);
 					t = source.buffer.length / self.context.sampleRate * 1000;
@@ -786,20 +838,25 @@ CWDecoder.prototype = {
 			(function next () {
 				setTimeout(function () {
 					var code = '';
-					for (var i = 0; i < Math.random() * 10; i++) {
+					for (var i = 0; i < 5; i++) {
 						code += String.fromCharCode(65 + Math.random() * 25);
 					}
 
-					self.unit  = self.context.sampleRate * (35 / 1000);
-					self.tone = self.context.sampleRate / (2 * Math.PI * 800);
+					self.unit  = self.context.sampleRate * (100 / 1000);
+					self.tone = self.context.sampleRate / (2 * Math.PI * 900);
 					var source = self.context.createBufferSource();
-					source.buffer = self.createToneBuffer(code);
+					source.buffer = self.createToneBuffer(code, {
+						character_spacing: 1,
+						word_spacing: 1,
+						tone : 900,
+						wpm: 15
+					});
 					source.connect(gain);
 					source.start(0);
 					t = source.buffer.length / self.context.sampleRate * 1000;
 
 					next();
-				}, t + (Math.random() * 1000));
+				}, t + (1000));
 			})();
 		})();
 
@@ -813,7 +870,7 @@ CWDecoder.prototype = {
 		var self = this;
 
 		var source = self.context.createBufferSource();
-		source.buffer = self.createToneBuffer(code);
+		source.buffer = self.createToneBuffer(code, self.config);
 		source.connect(self.context.destination);
 		source.start(0);
 
@@ -824,14 +881,21 @@ CWDecoder.prototype = {
 		return ret;
 	},
 
-	createToneBuffer : function (code) {
+	createToneBuffer : function (code, config) {
 		var self = this;
+
+		var speed = 
+			config.cpm ? 6000 / config.cpm:
+			config.wpm ? 1200 / config.wpm:
+				50;
+		var unit = self.context.sampleRate * (speed / 1000);
+		var tone = self.context.sampleRate / (2 * Math.PI * config.tone);
 
 		var sequence = [], length = 0;
 		for (var i = 0, n, len = code.length; i < len; i++) {
 			var c = code.charAt(i).toUpperCase();
 			if (c == ' ') {
-				n = 7 * self.config.word_spacing * self.unit;
+				n = 7 * config.word_spacing * unit;
 				length += n;
 				sequence.push(-n);
 			} else {
@@ -839,22 +903,22 @@ CWDecoder.prototype = {
 				for (var j = 0, mlen = m.length; j < mlen; j++) {
 					var mc = m.charAt(j);
 					if (mc === '.') {
-						n = 1 * self.unit;
+						n = 1 * unit;
 						length += n;
 						sequence.push(n);
 					} else
 					if (mc === '-') {
-						n = 3 * self.unit;
+						n = 3 * unit;
 						length += n;
 						sequence.push(n);
 					}
 					if (j < mlen - 1) {
-						n = 1 * self.config.character_spacing * self.unit;
+						n = 1 * config.character_spacing * unit;
 						length += n;
 						sequence.push(-n);
 					}
 				}
-				n = 3 * self.config.character_spacing * self.unit;
+				n = 3 * self.config.character_spacing * unit;
 				length += n;
 				sequence.push(-n);
 			}
@@ -872,7 +936,7 @@ CWDecoder.prototype = {
 				}
 			} else {
 				for (var p = 0; p < s; p++) {
-					data[x++] = Math.sin(p / self.tone);
+					data[x++] = Math.sin(p / tone);
 				}
 				// remove ticking (fade)
 				for (var f = 0, e = self.context.sampleRate * 0.005; f < e; f++) {

@@ -35,11 +35,11 @@
 			}
 
 			#log {
-				height: 100px;
-				overflow: auto;
-				margin: 0 auto;
-				width: 1024px;
-				padding: 10px 0;
+				display: block;
+				height: 150px;
+				overflow: hidden;
+				padding: 10px 10px 5px;
+				background: #333;
 			}
 		</style>
 	</head>
@@ -50,6 +50,8 @@
 		<p>
 			<canvas id="history" width="1024" height="200"></canvas>
 		</p>
-		<div id="log"></div>
+		<p>
+			<span id="log"></span>
+		</p>
 	</body>
 </html>
