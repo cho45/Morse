@@ -58,7 +58,7 @@ CWDecoder.prototype = {
 		// processDecode
 		self.q = new Float32Array(self.samples.length);
 		self.p = new Float32Array(self.samples.length);
-		self.lpf = new IIRFilter2(DSP.LOWPASS, 15, 0, self.downSampleRate);
+		self.lpf = new IIRFilter2(DSP.LOWPASS, 20, 0, self.downSampleRate);
 
 		self.FFT = new FFT(self.FFT_SIZE, self.downSampleRate);
 		self.fftOffset = 0;
@@ -276,7 +276,7 @@ CWDecoder.prototype = {
 		}
 		avg = avg / self.peakBandHistory.length;
 
-		if (self.peakBandHistory.length < 5) return;
+		if (self.peakBandHistory.length < 3) return;
 
 		if (!self.targetTone) {
 			self.targetTone = avg;
@@ -491,8 +491,8 @@ CWDecoder.prototype = {
 		q = q.subarray(0, x);
 		p = p.subarray(0, x);
 
-//		// 移動平均
-//		var k = Math.floor(self.downSampleRate / 4 * 0.02), avgQ = 0, avgP = 0;
+		// 移動平均
+//		var k = Math.floor(self.downSampleRate / 4 * 0.01), avgQ = 0, avgP = 0;
 //		for (var i = 0, len = p.length; i < len; i += 1) {
 //			avgQ -= (q[i - k] || 0) / k;
 //			avgQ += q[i] / k;
@@ -502,7 +502,7 @@ CWDecoder.prototype = {
 //			q[i] = avgQ;
 //			p[i] = avgP;
 //		}
-//
+
 		// 振幅計算 + min/max
 		// p はもう使わないので破壊的に書いている
 		var r = p, max = 0, min = Infinity;
@@ -510,8 +510,10 @@ CWDecoder.prototype = {
 			var m = Math.sqrt(q[i] * q[i] + p[i] * p[i]); // 振幅
 			// var pha = q[i] > 0 ? Math.atan2(p[i], q[i]) : Math.atan2(p[i], q[i]) + Math.PI; // 位相
 			r[i] = m;
-			if (max < r[i]) max = r[i];
-			if (r[i] < min) min = r[i];
+			if (i > len - 3000) {
+				if (max < r[i]) max = r[i];
+				if (r[i] < min) min = r[i];
+			}
 		}
 
 		// 2値化
@@ -565,7 +567,7 @@ CWDecoder.prototype = {
 					on = 0;
 					off++;
 
-					if (off > self.clock * 7) {
+					if (off > self.clock * 8) {
 						results.push({
 							index: -1,
 							char : ' '

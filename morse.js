@@ -54,7 +54,8 @@ Morse.codes = {
 	"\"":".-..-.",
 	"$":"...-..-",
 	"@":".--.-.",
-	"\n" : ".-.-" // AA (new line)
+	"\n" : ".-.-", // AA (new line)
+	"\x04" : "...-.-"
 };
 
 Morse.reverse = {};
@@ -64,3 +65,5 @@ for (var key in Morse.codes) if (Morse.codes.hasOwnProperty(key)) {
 	Morse.reverse[val] = key;
 }
 
+
+this.Morse = Morse;
