@@ -178,7 +178,7 @@ CWDecoder.prototype = {
 			var dummy = self.createDummy();
 			if (/dummy-output/.test(location.hash)) {
 				var gain = self.context.createGain();
-				gain.gain.value = 0.5;
+				gain.gain.value = 0.2;
 				dummy.connect(gain);
 				gain.connect(self.context.destination);
 			}
@@ -746,7 +746,7 @@ CWDecoder.prototype = {
 			var outputData = e.outputBuffer.getChannelData(0);
 			for (var i = 0, len = inputData.length; i < len; i++) {
 				var white = (Math.sqrt(-2 * Math.log(Math.random())) * Math.sin(2 * Math.PI * Math.random())) * 2 + 0;
-				outputData[i] = white;
+				outputData[i] = white * 0.5;
 			}
 			main.onaudioprocess = arguments.callee;
 		};
