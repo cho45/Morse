@@ -177,7 +177,10 @@ CWDecoder.prototype = {
 //			});
 			var dummy = self.createDummy();
 			if (/dummy-output/.test(location.hash)) {
-				dummy.connect(self.context.destination);
+				var gain = self.context.createGain();
+				gain.gain.value = 0.5;
+				dummy.connect(gain);
+				gain.connect(self.context.destination);
 			}
 			self.decode(dummy);
 		} else {
