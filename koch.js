@@ -199,13 +199,13 @@ $(function () {
 	$start.val('Start (Level:' + config.level + ')');
 	$levelup.attr('href', '?' + (config.level + 1));
 
-	// CAPS LOCK
-	$input.keyup(function (e) {
-		var cursor = this.selectionStart;
-		this.value = this.value.toUpperCase();
-		this.selectionStart = cursor;
-		this.selectionEnd = cursor;
-	}).hide();
+//	// CAPS LOCK
+//	$input.keyup(function (e) {
+//		var cursor = this.selectionStart;
+//		this.value = this.value.toUpperCase();
+//		this.selectionStart = cursor;
+//		this.selectionEnd = cursor;
+//	}).hide();
 
 	$start.click(function () {
 		$buttons.show();
