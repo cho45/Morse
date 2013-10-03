@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title></title>
+		<meta charset="utf-8"/>
+		<meta name="viewport" content="width=300, user-scalable=no"/>
+
+		<script type="text/javascript" src="lib/jquery-2.0.3.min.js"></script>
+		<script type="text/javascript" src="lib/jsdeferred.nodoc.js"></script>
+		<script type="text/javascript" src="lib/diff_match_patch.js"></script>
+		<script type="text/javascript" src="./String_random.js"></script>
+		<script type="text/javascript" src="morse.js"></script>
+		<script type="text/javascript" src="words.js"></script>
+
+		<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css">
+		<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-theme.min.css">
+		<script src="//netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
+
+		<style>
+			html, body {
+				position: relative;
+				margin: 0;
+				padding: 0;
+				line-height: 1.33;
+			}
+
+			.container {
+				max-width: 400px;
+			}
+
+			#answer {
+				display: none;
+				padding: 10px;
+				font-size: 150%;
+				font-weight: bold;
+				font-family: "Monaco", monospace;
+				line-height: 1;
+				margin: 0;
+				padding: 0;
+				line-height: 1.5;
+			}
+
+			pre {
+				font-family: "Monaco", monospace;
+			}
+
+			#input {
+				display: none;
+				font-size: 18px;
+				font-family: monospace;
+			}
+
+			#answer-input {
+				color: #777777;
+			}
+
+			#answer-answer {
+				color: #009900;
+			}
+
+			.delete {
+				color: #990000;
+			}
+
+			.insert {
+				color: #990099;
+			}
+
+			label {
+				display: block;
+				font-size: 14px;
+			}
+
+			input[type=number] {
+				font-size: 14px;
+			}
+
+			@media only screen and (max-width : 980px) {
+				body {
+					padding: 0;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div style="margin: 20px 0">
+				<input type="button" value="Start Training" id="start" class="btn btn-success"/>
+				<span id="elapsed"></span>
+			</div>
+			<div style="">
+				<textarea id="input" cols="10" rows="5" style="width: 100%"></textarea>
+			</div>
+			<div id="answer">
+				<div id="answer-accuracy"></div>
+				<div style="width: 100%;">
+					<pre id="answer-input" style="box-sizing:border-box; width:50%; float:left">a</pre>
+					<pre id="answer-answer" style="box-sizing:border-box; width:50%; float:right">b</pre>
+					<br style="clear:both"/>
+				</div>
+			</div>
+
+			<hr />
+
+			<form id="config" class="form">
+				<div class="form-group">
+					<label>Type:</label>
+					<select class="form-control" id="type">
+						<optgroup label="Koch">
+							<option value="koch-1">Koch Lesson 1</option>
+							<option value="koch-2">Koch Lesson 2</option>
+							<option value="koch-3">Koch Lesson 3</option>
+							<option value="koch-4">Koch Lesson 4</option>
+							<option value="koch-5">Koch Lesson 5</option>
+							<option value="koch-6">Koch Lesson 6</option>
+							<option value="koch-7">Koch Lesson 7</option>
+							<option value="koch-8">Koch Lesson 8</option>
+							<option value="koch-9">Koch Lesson 9</option>
+							<option value="koch-10">Koch Lesson 10</option>
+							<option value="koch-11">Koch Lesson 11</option>
+							<option value="koch-12">Koch Lesson 12</option>
+							<option value="koch-13">Koch Lesson 13</option>
+							<option value="koch-14">Koch Lesson 14</option>
+							<option value="koch-15">Koch Lesson 15</option>
+							<option value="koch-16">Koch Lesson 16</option>
+							<option value="koch-17">Koch Lesson 17</option>
+							<option value="koch-18">Koch Lesson 18</option>
+							<option value="koch-19">Koch Lesson 19</option>
+							<option value="koch-20">Koch Lesson 20</option>
+							<option value="koch-21">Koch Lesson 21</option>
+							<option value="koch-22">Koch Lesson 22</option>
+							<option value="koch-23">Koch Lesson 23</option>
+							<option value="koch-24">Koch Lesson 24</option>
+							<option value="koch-25">Koch Lesson 25</option>
+							<option value="koch-26">Koch Lesson 26</option>
+							<option value="koch-27">Koch Lesson 27</option>
+							<option value="koch-28">Koch Lesson 28</option>
+							<option value="koch-29">Koch Lesson 29</option>
+							<option value="koch-30">Koch Lesson 30</option>
+							<option value="koch-31">Koch Lesson 31</option>
+							<option value="koch-32">Koch Lesson 32</option>
+							<option value="koch-33">Koch Lesson 33</option>
+							<option value="koch-34">Koch Lesson 34</option>
+							<option value="koch-35">Koch Lesson 35</option>
+							<option value="koch-36">Koch Lesson 36</option>
+							<option value="koch-37">Koch Lesson 37</option>
+							<option value="koch-38">Koch Lesson 38</option>
+							<option value="koch-39">Koch Lesson 39</option>
+							<option value="koch-40">Koch Lesson 40</option>
+						</optgroup>
+						<option value="random">Random</option>
+						<option value="random-letters">Random (Only letters)</option>
+						<option value="random-numbers">Random (Only numbers)</option>
+						<option value="words-level1">Words Level1</option>
+						<option value="words-level2">Words Level2</option>
+					</select>
+				</div>
+
+				<div class="form-group">
+					<label for="speed">Speed:</label>
+					<div class="input-group">
+						<input type="number" min="10" max="60" value="20" step="1" name="speed" id="speed" class="form-control"/>
+						<span class="input-group-addon">wpm</span>
+					</div>
+					<p class="help-block">(<span id="speed-label"></span>)</p>
+					<p class="help-block">Typically, you should not set this under 15wpm.</p>
+				</div>
+
+				<div class="form-group">
+					<label for="character-spacing">Character Spacing Factor:</label>
+					<div class="input-group">
+						<span class="input-group-addon">×</span>
+						<input type="number" min="1" max="3" value="1.0" step="0.1" name="character-spacing" id="character-spacing" class="form-control"/>
+					</div>
+					<p class="help-block">More spaces for characters. If you want to listen "real" speed, set this to 1.0.</p>
+				</div>
+
+				<div class="form-group">
+					<label for="word-spacing">Word Spacing Factor:</label>
+					<div class="input-group">
+						<span class="input-group-addon">×</span>
+						<input type="number" min="1" max="5" value="1.0" step="0.1" name="word-spacing" id="word-spacing" class="form-control"/>
+					</div>
+					<p class="help-block">More spaces for words. If you want to listen "real" speed, set this to 1.0.</p>
+				</div>
+
+				<div class="form-group">
+					<label for="tone">Tone:</label>
+					<div class="input-group">
+						<input type="number" min="300" max="900" value="600" step="100" name="tone" id="tone" class="form-control"/>
+						<span class="input-group-addon">Hz</span>
+					</div>
+				</div>
+
+				<div class="form-group">
+					<label for="speed">Length:</label>
+					<div class="input-group">
+						<input type="number" min="1" max="10" value="1" step="1" name="length" id="length" class="form-control"/>
+						<span class="input-group-addon">min</span>
+					</div>
+				</div>
+			</form>
+			<!--div class="jumbotron">
+				<h1>Help</h1>
+				<p>Get 90% accuracy for a test and you can step up.</p>
+				<ol>
+					<li>Koch Lesson 1, 15wpm / cs 2.0 / ws 2.0</li>
+					<li>Koch Lesson 2, 15wpm / cs 2.0 / ws 2.0</li>
+					<li>....</li>
+					<li>Koch Lesson 40, 15wpm / cs 2.0 / ws 2.0</li>
+					<li>Random (same as Lesson 40), 15wpm / cs 1.7 / ws 1.7</li>
+					<li>Random, 15wpm / cs 1.5 / ws 1.5</li>
+					<li>Random, 15wpm / cs 1.2 / ws 1.2</li>
+					<li>Random, 15wpm / cs 1.0 / ws 1.0</li>
+					<li>Random, 16wpm</li>
+					<li>Random (Only letters), 16wpm</li>
+					<li>Random (Only numbers), 16wpm</li>
+					<li>Random, 17wpm</li>
+					<li>Random (Only letters), 17wpm</li>
+					<li>Random (Only numbers), 17wpm</li>
+					<li>...</li>
+				</ol>
+			</div-->
+		</div>
+	</body>
+</html>
