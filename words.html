@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title></title>
+		<title>Morse Trainer</title>
 		<meta charset="utf-8"/>
 		<meta name="viewport" content="width=300, user-scalable=no"/>
 
@@ -80,10 +80,98 @@
 					padding: 0;
 				}
 			}
+
+			#tutorial {
+				background: #efefef;
+				box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.2);
+				color: #333;
+				padding: 20px;
+			}
+
+			#tutorial strong {
+				font-size: 20px;
+				display: block;
+				margin: 0 0 15px 0;
+			}
+
+			#tutorial p {
+				margin: 10px 0;
+			}
 		</style>
 	</head>
 	<body>
 		<div class="container">
+			<div id="tutorial" style="">
+				<strong>Tutorial</strong>
+				<section>
+					<p>Training with Koch Method (Total 40 lesson)</p>
+					<p>First, you try lesson 1 which sends only "K" and "M".</p>
+				</section>
+				<section>
+					<p>If you get accuracy over 90%, you can step up to next lesson.</p>
+					<p>Each step adds just one character.</p>
+				</section>
+				<section>
+					<p>And you repeat it to lesson 40.</p>
+					<p>Speed should be over 15wpm all through training.</p>
+				</section>
+				<section>
+					<p>After 40, let's reduce character spacing and word spacing step by step.</p>
+					<p>1.9 ... 1.8 ... 1.5 ... 1.0</p>
+				</section>
+				<section>
+					<p>Okay, character/word spacing is now 1.0 which is "real" speed.</p>
+					<p>Let's speed up wpm step by step.</p>
+				</section>
+				<section>
+					<p>When you get 90% accuracy for 20wpm, you listen 15wpm easily.</p>
+					<p>And you can choose more speed or word training.</p>
+				</section>
+				<section>
+					<p>Enjoy.</p>
+				</section>
+				<!--
+				<p>Get 90% accuracy for a test and you can step up.</p>
+				<ol>
+					<li>Koch Lesson 1, 15wpm / cs 2.0 / ws 2.0</li>
+					<li>Koch Lesson 2, 15wpm / cs 2.0 / ws 2.0</li>
+					<li>....</li>
+					<li>Koch Lesson 40, 15wpm / cs 2.0 / ws 2.0</li>
+					<li>Random (same as Lesson 40), 15wpm / cs 1.7 / ws 1.7</li>
+					<li>Random, 15wpm / cs 1.5 / ws 1.5</li>
+					<li>Random, 15wpm / cs 1.2 / ws 1.2</li>
+					<li>Random, 15wpm / cs 1.0 / ws 1.0</li>
+					<li>Random, 16wpm</li>
+					<li>Random (Only letters), 16wpm</li>
+					<li>Random (Only numbers), 16wpm</li>
+					<li>Random, 17wpm</li>
+					<li>Random (Only letters), 17wpm</li>
+					<li>Random (Only numbers), 17wpm</li>
+					<li>...</li>
+				</ol -->
+				<div style="text-align: right">
+					<input type="button" class="btn btn-success" value="Next"/>
+				</div>
+				<script>
+					(function () {
+						var tut = $('#tutorial');
+						var sections = tut.find('section');
+						var cur = 0;
+
+						tut.find('input[type=button]').click(function () {
+							sections.hide();
+							sections.eq(cur++).show();
+
+							if (sections.length <= cur) {
+								$(this).val('OK').unbind().click(function () {
+									tut.hide();
+								});
+							}
+						}).click();
+					})();
+				</script>
+			</div>
+
 			<div style="margin: 20px 0">
 				<input type="button" value="Start Training" id="start" class="btn btn-success"/>
 				<span id="elapsed"></span>
