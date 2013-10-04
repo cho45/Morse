@@ -721,6 +721,8 @@ $(function () {
 
 	var trainer = new Trainer(config);
 
+	if (!localStorage.history) localStorage.history = JSON.stringify([]);
+
 	$start.click(function () {
 		$answer.hide();
 		$config.hide();
@@ -781,6 +783,21 @@ $(function () {
 			var wrongRate = distanse / answersJoined.replace(/\s+/g, '').length;
 			var accuracy  = (1 - wrongRate) * 100;
 
+			var history = [];
+			try {
+				history = JSON.parse(localStorage.history);
+			} catch (e) { alert(e) }
+
+			history.push({
+				type : trainer.config.type,
+				accuracy : accuracy,
+				wpm : trainer.config.wpm,
+				time : new Date().getTime()
+			});
+
+			while (history.length > 1000) history.shift();
+
+			localStorage.history = JSON.stringify(history);
 
 			$answerAccuracy.text(accuracy.toFixed(1) + '%');
 			if (accuracy >= 90) {

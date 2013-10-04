@@ -40,7 +40,13 @@
 				line-height: 1.5;
 			}
 
+			#answer-accuracy {
+				text-align: center;
+				margin: 10px 0;
+			}
+
 			pre {
+				border: none;
 				font-family: "Monaco", monospace;
 			}
 
@@ -84,7 +90,7 @@
 			#tutorial {
 				background: #efefef;
 				box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.2);
-				color: #333;
+				color: #000;
 				padding: 20px;
 			}
 
@@ -100,8 +106,8 @@
 		</style>
 	</head>
 	<body>
-		<div class="container">
-			<div id="tutorial" style="">
+		<div id="tutorial" style="">
+			<div class="container">
 				<strong>Tutorial</strong>
 				<section>
 					<p>Training with Koch Method (Total 40 lesson)</p>
@@ -128,7 +134,7 @@
 					<p>And you can choose more speed or word training.</p>
 				</section>
 				<section>
-					<p>Enjoy.</p>
+					<p>Enjoy!</p>
 				</section>
 				<!--
 				<p>Get 90% accuracy for a test and you can step up.</p>
@@ -171,7 +177,9 @@
 					})();
 				</script>
 			</div>
+		</div>
 
+		<div class="container">
 			<div style="margin: 20px 0">
 				<input type="button" value="Start Training" id="start" class="btn btn-success"/>
 				<span id="elapsed"></span>
