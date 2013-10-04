@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Play Morse Code</title>
+		<meta charset="utf-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+
+		<script type="text/javascript" src="lib/jquery-2.0.3.min.js"></script>
+		<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css">
+		<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-theme.min.css">
+		<script src="//netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
+
+		<script type="text/javascript" src="lib/micro-template.js"></script>
+		<script type="text/javascript" src="morse.js"></script>
+		<script type="text/javascript" src="chars.js"></script>
+
+		<style>
+			body {
+				padding: 10px;
+			}
+
+			.char {
+				text-align: center;
+				padding: 10px 15px;
+				margin: 10px -10px;
+			}
+
+			.char label {
+				display: block;
+				font-size: 20px;
+				color: #333;
+			}
+
+			footer {
+				padding: 10px 0;
+				margin: 20px 0;
+				color: #666;
+				clear: both;
+				border-style: solid;
+				border-width: 1px 0 0 0;
+				border-color: #eee;
+				text-align: center;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="page-header">
+				<h1>Play! Morse Code</h1>
+				<p class="lead">Don't see the codes, just listen!</p>
+			</div>
+
+			<noscript>
+				<p>Your browser does not support WebAudio. Try <a href="http://www.google.com/intl/ja/chrome/browser/">Google Chrome</a>.</p>
+			</noscript>
+
+			<script type="application/x-template" id="main">
+				<section>
+					<div class="page-header">
+						<h1>Letters</h1>
+					</div>
+					<div class="row">
+						<% var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; %>
+						<% for (var i = 0, len = chars.length; i < len; i++) { %>
+							<% include('col', { char : chars.charAt(i) } ) %>
+						<% } %>
+					</div>
+				</section>
+				<section>
+					<div class="page-header">
+						<h1>Numbers</h1>
+					</div>
+					<div class="row">
+						<% var chars = "0123456789"; %>
+						<% for (var i = 0, len = chars.length; i < len; i++) { %>
+							<% include('col', { char : chars.charAt(i) } ) %>
+						<% } %>
+					</div>
+				</section>
+				<section>
+					<div class="page-header">
+						<h1>Symbols</h1>
+					</div>
+					<div class="row">
+						<% var chars = ".,?'/()&:;=+-_$@" + '"'; %>
+						<% for (var i = 0, len = chars.length; i < len; i++) { %>
+							<% include('col', { char : chars.charAt(i) } ) %>
+						<% } %>
+					</div>
+				</section>
+			</script>
+
+			<script type="application/x-template" id="col">
+				<div class="col-xs-3 col-sm-2 col-md-1">
+					<div class="well char">
+						<label><%= char %></label>
+						<button data-char="<%= char %>" class="btn btn-success"><i class="glyphicon glyphicon-play"></i></button>
+					</div>
+				</div>
+			</script>
+
+			<footer>
+				<p>Made with Web Audio. All of sound made by client side web audio. So you don't need any unnecessary download for this page.</p>
+			</footer>
+		</div>
+	</body>
+</html>
