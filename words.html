@@ -89,7 +89,7 @@
 
 			#tutorial {
 				background: #efefef;
-				box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.2);
+				/* box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.2); */
 				color: #000;
 				padding: 20px;
 			}
@@ -136,25 +136,6 @@
 				<section>
 					<p>Enjoy!</p>
 				</section>
-				<!--
-				<p>Get 90% accuracy for a test and you can step up.</p>
-				<ol>
-					<li>Koch Lesson 1, 15wpm / cs 2.0 / ws 2.0</li>
-					<li>Koch Lesson 2, 15wpm / cs 2.0 / ws 2.0</li>
-					<li>....</li>
-					<li>Koch Lesson 40, 15wpm / cs 2.0 / ws 2.0</li>
-					<li>Random (same as Lesson 40), 15wpm / cs 1.7 / ws 1.7</li>
-					<li>Random, 15wpm / cs 1.5 / ws 1.5</li>
-					<li>Random, 15wpm / cs 1.2 / ws 1.2</li>
-					<li>Random, 15wpm / cs 1.0 / ws 1.0</li>
-					<li>Random, 16wpm</li>
-					<li>Random (Only letters), 16wpm</li>
-					<li>Random (Only numbers), 16wpm</li>
-					<li>Random, 17wpm</li>
-					<li>Random (Only letters), 17wpm</li>
-					<li>Random (Only numbers), 17wpm</li>
-					<li>...</li>
-				</ol -->
 				<div style="text-align: right">
 					<input type="button" class="btn btn-success" value="Next"/>
 				</div>
@@ -163,17 +144,21 @@
 						var tut = $('#tutorial');
 						var sections = tut.find('section');
 						var cur = 0;
+						if (!localStorage.tutorial) {
+							tut.find('input[type=button]').click(function () {
+								sections.hide();
+								sections.eq(cur++).show();
 
-						tut.find('input[type=button]').click(function () {
-							sections.hide();
-							sections.eq(cur++).show();
-
-							if (sections.length <= cur) {
-								$(this).val('OK').unbind().click(function () {
-									tut.hide();
-								});
-							}
-						}).click();
+								if (sections.length <= cur) {
+									$(this).val('OK').unbind().click(function () {
+										localStorage.tutorial = true;
+										tut.hide();
+									});
+								}
+							}).click();
+						} else {
+							tut.remove();
+						}
 					})();
 				</script>
 			</div>

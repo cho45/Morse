@@ -45,20 +45,28 @@ Trainer.prototype = {
 
 		var end  = time + config.time;
 		if (location.hash === '#debug') end = time + 5;
-		while (time < end) {
+
+		return next(function () {
 			var code = seq.next();
-			callback(code); // TODO
 
 			var source = self.context.createBufferSource();
 			source.buffer = self.createToneBuffer(code + ' ', self.config);
 			source.connect(self.context.destination);
 			source.start(time);
 
+			setTimeout(function () {
+				callback(code);
+			}, (time - self.context.currentTime) * 1000);
+
 			var lengthOfSequence = source.buffer.length / self.context.sampleRate;
 			time += lengthOfSequence;
-		}
 
-		return wait(time - self.context.currentTime);
+			if (time < end) {
+				return next(arguments.callee);
+			} else {
+				return wait(time - self.context.currentTime);
+			}
+		});
 	},
 
 	play : function (code) {
@@ -134,12 +142,12 @@ Trainer.prototype = {
 						sequence.push(n);
 					}
 					if (j < mlen - 1) {
-						n = 1 * config.character_spacing * unit;
+						n = 1 * unit;
 						length += n;
 						sequence.push(-n);
 					}
 				}
-				n = 3 * self.config.character_spacing * unit;
+				n = 3 * config.character_spacing * unit;
 				length += n;
 				sequence.push(-n);
 			}
@@ -740,6 +748,7 @@ $(function () {
 		var answers = [];
 
 		trainer.start(function (answer) {
+			console.log(answer);
 			answers.push(answer);
 		}).
 		next(function () {
