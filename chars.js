@@ -132,7 +132,7 @@ $(function () {
 
 	$('#play-text').submit(function () {
 		try {
-			var text = $(this).find('textarea').val();
+			var text = $(this).find('textarea').val().replace(/\s+/g, ' ');
 			if (text) {
 				play.play(text, opts);
 			}
