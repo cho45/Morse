@@ -104,14 +104,40 @@ $(function () {
 
 	$(extended('main', {})).replaceAll('#main');
 
+	var opts = {
+		wpm : +localStorage['chars-wpm']   || 20,
+		tone : +localStorage['chars-tone'] || 600, 
+		word_spacing : 1,
+		character_spacing: 1
+	};
+
+	$('#options form').submit(function () {
+		return false;
+	});
+
+	$('#options input').on('keyup change', function () {
+		var $this = $(this);
+		var name = $this.attr('name');
+		opts[name] = +$this.val();
+		localStorage['chars-' + name] = $this.val();
+	}).each(function () {
+		this.value = opts[this.name];
+	});
+
 	var play = new Play();
 
-	$('button').click(function () {
-		play.play($(this).attr('data-char'), {
-			wpm : 25,
-			tone : 600,
-			word_spacing : 1,
-			character_spacing: 1
-		});
+	$('button[data-char]').click(function () {
+		play.play($(this).attr('data-char'), opts);
 	});
+
+	$('#play-text').submit(function () {
+		try {
+			var text = $(this).find('textarea').val();
+			if (text) {
+				play.play(text, opts);
+			}
+		} catch (e) { alert(e) }
+		return false;
+	});
+
 });

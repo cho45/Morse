@@ -41,6 +41,16 @@
 				border-color: #eee;
 				text-align: center;
 			}
+
+			#options {
+				position: fixed;
+				bottom: 0;
+				right: 0;
+				width: 180px;
+				padding: 20px;
+				background: rgba(255, 255, 255, 0.5);
+				box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+			}
 		</style>
 
 
@@ -72,39 +82,89 @@
 			</noscript>
 
 			<script type="application/x-template" id="main">
-				<section>
-					<div class="page-header">
-						<h1>Letters</h1>
+				<ul class="nav nav-tabs">
+					<li class="active"><a href="#chars" data-toggle="tab">Characters</a></li>
+					<li><a href="#text" data-toggle="tab">Text</a></li>
+				</ul>
+
+				<div class="tab-content">
+					<div class="tab-pane fade in active" id="chars">
+						<section>
+							<div class="page-header">
+								<h1>Letters</h1>
+							</div>
+							<div class="row">
+								<% var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; %>
+								<% for (var i = 0, len = chars.length; i < len; i++) { %>
+									<% include('col', { char : chars.charAt(i) } ) %>
+								<% } %>
+							</div>
+						</section>
+						<section>
+							<div class="page-header">
+								<h1>Numbers</h1>
+							</div>
+							<div class="row">
+								<% var chars = "0123456789"; %>
+								<% for (var i = 0, len = chars.length; i < len; i++) { %>
+									<% include('col', { char : chars.charAt(i) } ) %>
+								<% } %>
+							</div>
+						</section>
+						<section>
+							<div class="page-header">
+								<h1>Symbols</h1>
+							</div>
+							<div class="row">
+								<% var chars = ".,?'/()&:;=+-_$@" + '"'; %>
+								<% for (var i = 0, len = chars.length; i < len; i++) { %>
+									<% include('col', { char : chars.charAt(i) } ) %>
+								<% } %>
+							</div>
+						</section>
 					</div>
-					<div class="row">
-						<% var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; %>
-						<% for (var i = 0, len = chars.length; i < len; i++) { %>
-							<% include('col', { char : chars.charAt(i) } ) %>
-						<% } %>
+					<div class="tab-pane fade" id="text">
+						<section>
+							<div class="page-header">
+								<h1>Text</h1>
+							</div>
+							<form id="play-text">
+								<div class="form-group">
+									<textarea cols="80" rows="10" id="text" placeholder="Input any text here..." class="form-control"></textarea>
+								</div>
+								<div class="form-group">
+									<button type="submit" class="btn btn-primary">
+										<i class="glyphicon glyphicon-play"></i>
+										Play
+									</button>
+								</div>
+							</form>
+						</section>
 					</div>
-				</section>
-				<section>
-					<div class="page-header">
-						<h1>Numbers</h1>
-					</div>
-					<div class="row">
-						<% var chars = "0123456789"; %>
-						<% for (var i = 0, len = chars.length; i < len; i++) { %>
-							<% include('col', { char : chars.charAt(i) } ) %>
-						<% } %>
-					</div>
-				</section>
-				<section>
-					<div class="page-header">
-						<h1>Symbols</h1>
-					</div>
-					<div class="row">
-						<% var chars = ".,?'/()&:;=+-_$@" + '"'; %>
-						<% for (var i = 0, len = chars.length; i < len; i++) { %>
-							<% include('col', { char : chars.charAt(i) } ) %>
-						<% } %>
-					</div>
-				</section>
+				</div>
+				<aside id="options">
+					<form>
+						<div class="form-group">
+							<label>
+								<i class="glyphicon glyphicon-forward"></i> Speed
+							</label>
+							<div class="input-group">
+								<input type="number" min="10" max="60" value="20" step="1" name="wpm" id="wpm" class="form-control input-sm"/>
+								<span class="input-group-addon">wpm</span>
+							</div>
+						</div>
+						<div class="form-group">
+							<label>
+								<i class="glyphicon glyphicon-stats"></i> Tone
+							</label>
+							<div class="input-group">
+								<input type="number" min="300" max="900" value="600" step="100" name="tone" id="tone" class="form-control input-sm"/>
+								<span class="input-group-addon">Hz</span>
+							</div>
+						</div>
+					</form>
+
+				</aside>
 			</script>
 
 			<script type="application/x-template" id="col">
