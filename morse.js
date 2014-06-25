@@ -55,7 +55,8 @@ Morse.codes = {
 	"$":"...-..-",
 	"@":".--.-.",
 	"\n" : ".-.-", // AA (new line)
-	"\x04" : "...-.-" // VA
+	"\x01" : "-.-.-", // CT/KA (attention)
+	"\x04" : "...-.-" // VA/SK (end of transmission)
 };
 
 Morse.reverse = {};
