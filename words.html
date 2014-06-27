@@ -172,18 +172,8 @@
 			<div style="">
 				<textarea id="input" cols="10" rows="5" style="width: 100%"></textarea>
 			</div>
-			<div id="answer">
-				<div id="answer-accuracy"></div>
-				<div style="width: 100%;">
-					<pre id="answer-input" style="box-sizing:border-box; width:50%; float:left">a</pre>
-					<pre id="answer-answer" style="box-sizing:border-box; width:50%; float:right">b</pre>
-					<br style="clear:both"/>
-				</div>
-			</div>
 
-			<hr />
-
-			<form id="config" class="form">
+			<form id="config" class="config form">
 				<div class="form-group">
 					<label>Type:</label>
 					<select class="form-control" id="type">
@@ -232,6 +222,7 @@
 						<option value="random">Random</option>
 						<option value="random-letters">Random (Only letters)</option>
 						<option value="random-numbers">Random (Only numbers)</option>
+						<option value="random-EISH5">Random (EISH5)</option>
 						<option value="words-level1">Words Level1</option>
 						<option value="words-level2">Words Level2</option>
 					</select>
@@ -247,6 +238,20 @@
 					<p class="help-block">Typically, you should not set this under 15wpm.</p>
 				</div>
 
+			</form>
+
+			<div id="answer">
+				<div id="answer-accuracy"></div>
+				<div style="width: 100%;">
+					<pre id="answer-input" style="box-sizing:border-box; width:50%; float:left">a</pre>
+					<pre id="answer-answer" style="box-sizing:border-box; width:50%; float:right">b</pre>
+					<br style="clear:both"/>
+				</div>
+			</div>
+
+			<hr />
+
+			<form id="config" class="config form">
 				<div class="form-group">
 					<label for="character-spacing">Character Spacing Factor:</label>
 					<div class="input-group">
