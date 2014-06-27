@@ -194,35 +194,39 @@ App.directive('newsProgress', function () {
 App.value('config', {
 	feeds : [
 		{
-			name:"GoogleNews (Top)",
+			name:"Engadget",
+			url: "http://www.engadget.com/rss.xml"
+		},
+		{
+			name:"Google News (Top)",
 			url: "http://news.google.com/news?output=atom"
 		},
 		{
-			name:"GoogleNews (World)",
+			name:"Google News (World)",
 			url: "http://news.google.com/news?output=atom&topic=w"
 		},
 		{
-			name:"GoogleNews (Business)",
+			name:"Google News (Business)",
 			url: "http://news.google.com/news?output=atom&topic=w"
 		},
 		{
-			name:"GoogleNews (Politics)",
+			name:"Google News (Politics)",
 			url: "http://news.google.com/news?output=atom&topic=p"
 		},
 		{
-			name:"GoogleNews (Entertainment)",
+			name:"Google News (Entertainment)",
 			url: "http://news.google.com/news?output=atom&topic=e"
 		},
 		{
-			name:"GoogleNews (Sports)",
+			name:"Google News (Sports)",
 			url: "http://news.google.com/news?output=atom&topic=s"
 		},
 		{
-			name:"GoogleNews (Technology)",
+			name:"Google News (Technology)",
 			url: "http://news.google.com/news?output=atom&topic=t"
 		},
 		{
-			name:"GoogleNews (Most Popular)",
+			name:"Google News (Most Popular)",
 			url: "http://news.google.com/news?output=atom&topic=po"
 		}
 	]
@@ -249,7 +253,7 @@ App.controller('MainCtrl', function ($scope, $sce, $document, $timeout, $http, l
 			$scope.loadingProgress = 50;
 		}, 250);
 
-		var pipe = 'http://pipes.yahoo.com/pipes/pipe.run?URL=' + feed.url + '&_id=9fd3944af37e930352af04bf5ca7bfb4&_render=json&_callback=JSON_CALLBACK';
+		var pipe = 'http://pipes.yahoo.com/pipes/pipe.run?URL=' + encodeURIComponent(feed.url) + '&_id=9fd3944af37e930352af04bf5ca7bfb4&_render=json&_callback=JSON_CALLBACK';
 		$http.jsonp(pipe).then(function (data) {
 			if (data.status !== 200) {
 				throw "Failed to load from pipes";
@@ -259,7 +263,7 @@ App.controller('MainCtrl', function ($scope, $sce, $document, $timeout, $http, l
 			var value = CT;
 			for (var i = 0, it; (it = data.data.value.items[i]); i++) {
 				value += it.title + BT;
-				var html = it.content.content || it.description;
+				var html = it.content ? it.content.content : it.description;
 				var div  = $('<div/>').html(html.replace(/<[^ ]+[^>]*>/g, function (_) { return _ }));
 				value += div.text() + AR;
 			}
