@@ -71,16 +71,40 @@ Trainer.prototype = {
 
 	play : function (code) {
 		var self = this;
-
-		var source = self.context.createBufferSource();
-		source.buffer = self.createToneBuffer(code, self.config);
-		source.connect(self.context.destination);
-		source.start(0);
-
 		var ret = new Deferred();
-		setTimeout(function () {
-			ret.call();
-		}, source.buffer.length / self.context.sampleRate * 1000);
+		var position = self.context.currentTime;
+		var parts = typeof code == 'string' ? code.split(/\s+/) : code;
+		var config = self.config;
+
+		var emptyDuration = self.createToneBuffer(' ', config).duration;
+
+		var playPart = function () {
+			var part = parts.shift();
+			if (!part) {
+				(config.onended || angular.noop)();
+				ret.call();
+				return;
+			}
+
+			(config.onprogress || angular.noop)(part);
+			var source = self.context.createBufferSource();
+			source.buffer = self.createToneBuffer(part, config);
+			source.connect(self.context.destination);
+			source.onended = playPart;
+			source.start(position);
+			position += source.buffer.duration + emptyDuration;
+			self.currentSource = source; // retain audio node
+		};
+
+		playPart();
+
+		ret.canceller = function () {
+			self.currentSource.onended = angular.noop;
+			self.currentSource.stop(0);
+			delete self.currentSource;
+			(config.onended || angular.noop)();
+		};
+
 		return ret;
 	},
 
@@ -168,7 +192,7 @@ Trainer.prototype = {
 					data[x++] = Math.sin(p / tone);
 				}
 				// remove ticking (fade)
-				for (var f = 0, e = self.context.sampleRate * 0.004; f < e; f++) {
+				for (var f = 0, e = self.context.sampleRate * 0.002; f < e; f++) {
 					data[x - f] = data[x - f] * (f / e); 
 				}
 			}
@@ -227,6 +251,7 @@ Trainer.TYPES = {
 	'random' : new Trainer.Sequence.Random("KMURESNAPTLWI.JZ=FOY,VG5/Q92H38B?47C1D60X"),
 	'random-letters' : new Trainer.Sequence.Random("ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
 	'random-numbers' : new Trainer.Sequence.Random("0123456789"),
+	'random-EISH5' : new Trainer.Sequence.Random("SH5"),
 
 	'words-level1' : new Trainer.Sequence.Words([
 		"CQ",
@@ -241,9 +266,12 @@ Trainer.TYPES = {
 		"GM", // good morning
 		"GA", // good afternoon
 		"GE", // good evening
+		"GL", // good luck
+		"GN", // good night
 		"OM",
 		"TNK",
 		"TNX",
+		"TKS",
 		"FER",// for
 		"CALL",
 		"UR", // your
@@ -278,11 +306,78 @@ Trainer.TYPES = {
 		"WATTS",
 		"HPE", // hope
 		"CUAGN", // see you again
+		"AGN",
+		"BTU", // back to you
+		"BUG",
+		"B4", // before
+		"CFM", // confirm
+		"CLG", // calling
+		"ADR", // address
+		"AA", // all after
+		"AB", // all before
+		"CS", // callsign
+		"CTL", // control
+		"CUD", // could
+		"CUL", // see you later
+		"CX", // conditions
+		"DSW", // goodbye
+		"ENUF", // enough
+		"FREQ", // frequency
+		"FWD", // forward
+		"HEE", // lol
+		"HI", // lol
+		"HV", // have
+		"II", // i say again
+		"IMP", // impedance
+		"MILS", // milliamperes
+		"MNI", // many
+		"NIL", // nothing
+		"NM", // name
+		"NR", // number
+		"NX", // noisy
+		"PLS", // please
+		"PWR", // power
+		"PX", // prefix
+		"RCVR", // receiver
+		"RFI", // RF interference
+		"RTTY", // 
+		"SAE", // Self-addressed envelope
+		"SASE", // Self-addressed, stamped envelope
+		"SED", // said
+		"SEZ", // says
+		"SFR", // so far
+		"SKED", // schedule
+		"SNR", // signal noise ratio
+		"SRI", // sorry
+		"SSB",
+		"STN", // station
+		"TMW", // tomorrow
+		"TT", // that
+		"TXT",
+		"URS",
+		"VX", // voice, phone
+		"VY", // very
+		"WA", // word after
+		"WB", // word before
+		"WID", // with
+		"WKD", // worked
+		"WKG", // working
+		"WUD", // would
+		"WTC", // what the craic?
+		"XCVR", // transceiver
+		"XMTR", // transmitter
+		"XYL", // wife
+		"YL", 
 		"SOON",
 		"CL", // close
 		"BECUZ", // because
+		"CUZ", // because
 		"LTR", // letter
 		"HR", // here
+		"I AM",
+		"OF THE",
+		"TEST",
+		"GOING",
 
 		"GO",
 		"AM",
@@ -393,10 +488,28 @@ Trainer.TYPES = {
 		"QRM",
 		"QSB",
 		"QSY",
+		"QRP",
 		"QRL",  // 使用中です
 		"QRL?", // 使用中ですか?
-		"QRZ",
-		"QRZ?",
+		"QRZ?", // 誰か呼びましたか？
+		"QRA?", // 貴局名はなんですか？
+		"QRH?", // こちらの周波数は変化しますか？
+		"QRI?", // こちらの音調はどうですか？
+		"QRK?", // こちらの明瞭度はどうですか？
+		"QRM?", // 混信をうけていますか？
+		"QRN?", // 空電の影響をうけていますか？
+		"QRO?", // 電力を増やしますか？
+		"QRP?", // 電力を減らしますか？
+		"QRQ?", // もっと早くしますか？
+		"QRS?", // もっと遅くしますか？
+		"QRU?", // こちらに伝送するものがありますか？
+		"QSB?", // フェージングがありますか？
+		"QSD?", // こちらの信号はきれますか？
+		"QSM?", // そちらが送信した電報を反復しますか？
+		"QTH?", // 位置はなんですか？
+		"QSW?", // そちらは，この周波数(又は……kHz(若しくはMHz))で(種別……の発射で)送信してくれませんか。
+		"QSX?", // そちらは，……(名称又は呼出符号)を……kHz(又はMHz)で又は……の周波数帯若しくは……の通信路で聴取してくれませんか。
+		"QSU?", // こちらは，この周波数(又は……kHz(若しくはMHz))で(種別……の発射で)送信又は応答しましようか。
 
 		"JH1UMV"
 	]),
@@ -714,14 +827,14 @@ Trainer.TYPES = {
 
 $(function () {
 
-	var $start          = $('#start');
+	var $start          = $('#start').focus();
 	var $answer         = $('#answer');
 	var $answerInput    = $('#answer-input');
 	var $answerAnswer   = $('#answer-answer');
 	var $answerAccuracy = $('#answer-accuracy');
 	var $elapsed        = $('#elapsed');
 	var $input          = $('#input');
-	var $config         = $('#config');
+	var $config         = $('.config');
 
 	var config = {
 		time: 10
@@ -818,6 +931,7 @@ $(function () {
 			$answer.show();
 			$config.show();
 			$start.removeAttr('disabled');
+			$start.focus();
 		}).
 		error(function (e) {
 			alert(e);
