@@ -32,39 +32,16 @@ Trainer.prototype = {
 		var time = self.context.currentTime;
 
 
-		// pre-loading time: ensure to output audio
-		var osc  = self.context.createOscillator();
-		var gain = self.context.createGain();
-		gain.gain.value = 0;
-		osc.connect(gain);
-		gain.connect(self.context.destination);
-
-		osc.start(time);
-		time += 3;
-		osc.stop(time);
-
 		var end  = time + config.time;
 		if (location.hash === '#debug') end = time + 5;
 
-		return next(function () {
-			var code = seq.next();
-
-			var source = self.context.createBufferSource();
-			source.buffer = self.createToneBuffer(code + ' ', self.config);
-			source.connect(self.context.destination);
-			source.start(time);
-
-			setTimeout(function () {
-				callback(code);
-			}, (time - self.context.currentTime) * 1000);
-
-			var lengthOfSequence = source.buffer.length / self.context.sampleRate;
-			time += lengthOfSequence;
-
+		return self.play(function (time) {
 			if (time < end) {
-				return next(arguments.callee);
+				var code = seq.next();
+				callback(code);
+				return code;
 			} else {
-				return wait(time - self.context.currentTime);
+				return null;
 			}
 		});
 	},
@@ -73,20 +50,45 @@ Trainer.prototype = {
 		var self = this;
 		var ret = new Deferred();
 		var position = self.context.currentTime;
-		var parts = typeof code == 'string' ? code.split(/\s+/) : code;
+		var parts = function () {
+			if (typeof code == 'function') {
+				return code;
+			} else
+			if (typeof code == 'string') {
+				var splitted = code.split(/\s+/);
+				return function () {
+					return splitted.shift();
+				};
+			} else {
+				return function () {
+					return code.shift();
+				};
+			}
+		} ();
 		var config = self.config;
+
+		// pre-loading time: ensure to output audio
+		var osc  = self.context.createOscillator();
+		var gain = self.context.createGain();
+		gain.gain.value = 0;
+		osc.connect(gain);
+		gain.connect(self.context.destination);
+
+		osc.start(position);
+		position += 3;
+		osc.stop(position);
 
 		var emptyDuration = self.createToneBuffer(' ', config).duration;
 
 		var playPart = function () {
-			var part = parts.shift();
+			var part = parts(position);
 			if (!part) {
-				(config.onended || angular.noop)();
+				(config.onended || function () {})();
 				ret.call();
 				return;
 			}
 
-			(config.onprogress || angular.noop)(part);
+			(config.onprogress || function () {})(part);
 			var source = self.context.createBufferSource();
 			source.buffer = self.createToneBuffer(part, config);
 			source.connect(self.context.destination);
@@ -99,10 +101,10 @@ Trainer.prototype = {
 		playPart();
 
 		ret.canceller = function () {
-			self.currentSource.onended = angular.noop;
+			delete self.currentSource.onended;
 			self.currentSource.stop(0);
 			delete self.currentSource;
-			(config.onended || angular.noop)();
+			(config.onended || function () {})();
 		};
 
 		return ret;
