@@ -18,6 +18,7 @@ JJY.prototype = {
 	init : function (config) {
 		this.context = this.context || new AudioContext();
 		this.config = this.config || {
+			error: 0,
 			gain: 0.5,
 			tone: 800,
 			wpm: 18,
@@ -33,9 +34,8 @@ JJY.prototype = {
 			marker : this.createBitBuffer('marker'),
 		};
 
-		this.offset = performance.timing.navigationStart;
+		this.offset = performance.timing.navigationStart - this.config.error;
 		this.gain = this.gain || this.context.createGain();
-		this.gain.gain.value = 0.5;
 		this.gain.connect(this.context.destination);
 		this.gain.gain.value = this.config.gain;
 	},
@@ -49,7 +49,7 @@ JJY.prototype = {
 			if (sent === willSent) return;
 			sent = willSent;
 			this.queue();
-		}, 500);
+		}, 250);
 	},
 
 	/**
@@ -197,10 +197,11 @@ JJY.prototype = {
 			marker: 0.2
 		}[type] * this.context.sampleRate;
 
-		const buffer = this.context.createBuffer(1, this.context.sampleRate, this.context.sampleRate);
+		const samples = this.context.sampleRate;
+		const buffer = this.context.createBuffer(1, samples + 1e3, this.context.sampleRate);
 		const data   = buffer.getChannelData(0);
 
-		for (var i = 0, len = data.length; i < len; i++) {
+		for (var i = 0, len = samples; i < len; i++) {
 			data[i] = Math.sin(i / tone) * (i < border ? 1 : 0.1);
 		}
 
@@ -273,9 +274,60 @@ JJY.prototype = {
 	}
 };
 
+
+// http://www.nict.go.jp/JST/http.html
+JST = function () { this.init.apply(this, arguments) };
+JST.prototype = {
+	init : function () {
+	},
+
+	getClock : async function () {
+		const results = [];
+		results.push(await this.getJST("https://ntp-a1.nict.go.jp/cgi-bin/json"));
+		results.push(await this.getJST("https://ntp-b1.nict.go.jp/cgi-bin/json"));
+		return results;
+	},
+
+	getJST : async function (url) {
+		// XXX TCP/TLS ソケットをオープンする初期化処理やヘッダ送出時間があるため、RTT を往路・復路で同一とみなすことはできない
+		// HTML ページ側で preconnect を指定し、リクエスト前に接続をはっておくほうが良い
+		const jst = await new Promise( (resolve, reject) => {
+			var initTime, recvTime;
+			const xhr = new XMLHttpRequest();
+			xhr.onload = function (e) {
+				recvTime = Date.now();
+				const json = JSON.parse(xhr.responseText);
+				resolve({
+					initTime: initTime,
+					recvTime: recvTime,
+					sendTime: json.st * 1000
+				});
+			};
+			xhr.onerror = reject;
+			xhr.onabort = reject;
+			xhr.open("GET", url + '?' + (Date.now() / 1000));
+			initTime = Date.now();
+			xhr.send();
+		});
+
+		const rtt = jst.recvTime - jst.initTime;
+		const lb = jst.initTime - jst.sendTime;
+		const ub = jst.recvTime - jst.sendTime;
+		const error = Math.round( (lb + ub) / 2);
+		return {
+			rtt: rtt,
+			lb: lb,
+			ub: ub,
+			error: error
+		};
+	}
+};
+
 document.addEventListener("DOMContentLoaded", function (e) {
 	const jjy = new JJY();
-	jjy.start();
+	document.getElementById('play').onclick = () => {
+		jjy.start();
+	};
 
 	window.addEventListener('input', function (e) {
 		jjy.config[e.target.id] = e.target.value;
@@ -286,4 +338,46 @@ document.addEventListener("DOMContentLoaded", function (e) {
 		jjy.config.forceSendCallSign = e.target.checked;
 		console.log(jjy.config);
 	};
+
+	const element = document.getElementById('time');
+	var count = 0, time = 0, fps = 0;
+	const renderTime = function me () {
+		const date = new Date();
+
+		count++;
+		if (date.getTime() - time > 1000) {
+			time = date.getTime();
+			fps = count;
+			count = 0;
+		}
+
+		element.textContent = 
+			date.getFullYear() + '-' + String(100 + date.getMonth() + 1).substring(1) + '-' + String(100 + date.getDay()).substring(1) + ' ' +
+			String(100 + date.getHours()).substring(1) + ':' + String(100 + date.getMinutes()).substring(1) + ":" + String(100 + date.getSeconds()).substring(1) + "." +
+			String(1000 + date.getMilliseconds()).substring(1) + ' ' + '(' + fps + ' fps)';
+
+		requestAnimationFrame(me);
+	};
+	renderTime();
+
+	setTimeout(async function () {
+		const jst = new JST();
+		const results = await jst.getClock();
+		console.log(results);
+		if (results.every(r => r.error < 100)) {
+			// 誤差100ms未満。クライアントはおそらくNTP同期されている。
+			// 同期されているならクライアントの時計を信用したほうが良いので無視
+			document.body.classList.add('correct-time');
+		} else
+		if (results.some(r => r.error < 100)) {
+			// 取得に失敗した可能性があるので無視
+		} else {
+			const error = results.reduce( (r, i) => r + i.error, 0) / results.length;
+			jjy.init({
+				error: error
+			});
+			console.log('error', error);
+			document.body.classList.add('incorrect-time');
+		}
+	}, 1000);
 });

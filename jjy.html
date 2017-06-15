@@ -8,14 +8,39 @@
 
 		<script type="text/javascript" src="morse.js"></script>
 		<script type="text/javascript" src="jjy.js"></script>
+
+		<link rel="preconnect" href="https://ntp-a1.nict.go.jp" crossorigin>
+		<link rel="preconnect" href="https://ntp-b1.nict.go.jp" crossorigin>
+		<style>
+			.correct-time #time {
+				color: green;
+				font-weight: bold;
+			}
+
+			.correct-time #time::after {
+				content: " クライアント時刻はあっているようです";
+			}
+
+			.incorrect-time #time {
+				color: orange;
+				font-weight: bold;
+			}
+
+			.incorrect-time #time::after {
+				content: " クライアント時刻がずれているようです。NTP などの設定をおすすめします";
+			}
+		</style>
 	</head>
 	<body>
+		<button id="play">開始</button>
 		<p>
 			JJY を CW モードで聞いたときの音をシミュレートします。
+			<a href="./vhf-jjy.html">短波JJY版</a>
 		</p>
 		<p>
 			高精度タイマーである performance.now() に依存しています。
 		</p>
+		<p id="time"></p>
 		<fieldset>
 			<legend>オプション</legend>
 			<p>
@@ -39,5 +64,15 @@
 				<p>通常は15分、45分に送出される呼び出し符号を毎分送出します</p>
 			</div>
 		</fieldset>
+
+		<hr>
+
+		<p>
+			性質上完全に同期した時刻にはなっていません。
+		</p>
+
+		<p>
+			<a href="http://www.nict.go.jp/JST/http.html">クライアント時刻の正しさの検証は NICT の JST API で求めています</a> 
+		</p>
 	</body>
 </html>
