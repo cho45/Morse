@@ -21,7 +21,7 @@ JJY.prototype = {
 			error: 0,
 			gain: 0.5,
 			tone: 800,
-			wpm: 18,
+			wpm: 15,
 			character_spacing: 1,
 			word_spacing: 1
 		};
@@ -77,7 +77,8 @@ JJY.prototype = {
 		const startTime = anow + nextSecond;
 
 		const sendingTime = new Date(Math.floor(willSent / 60) * 60 * 1000);
-		const dayOfYear = Math.ceil( (sendingTime.getTime() - new Date(sendingTime.getFullYear(), 1, 1).getTime()) / (60 * 60 * 24 * 1000));
+		// 1月1日を1とした通算日
+		const dayOfYear = Math.floor((sendingTime.getTime() - new Date(sendingTime.getFullYear(), 0, 1).getTime()) / (60 * 60 * 24 * 1000)) + 1;
 		const year = sendingTime.getFullYear() % 100;
 
 		const bit = willSent % 60;
@@ -91,7 +92,7 @@ JJY.prototype = {
 			5: bcd(sendingTime.getMinutes(), 1, 4)[0],
 			6: bcd(sendingTime.getMinutes(), 1, 4)[1],
 			7: bcd(sendingTime.getMinutes(), 1, 4)[2],
-			8: bcd(sendingTime.getMinutes(), 1, 4)[2],
+			8: bcd(sendingTime.getMinutes(), 1, 4)[3],
 
 			9: 'marker',
 			10: '0',
@@ -123,8 +124,10 @@ JJY.prototype = {
 			34: '0',
 			35: '0',
 
-			36:  (bcd(sendingTime.getHours(), 2, 2) + bcd(sendingTime.getHours(), 1, 4)).split('').reduce( (r, i) => r + i, 0) % 2 ,
-			37:  (bcd(sendingTime.getMinutes(), 2, 3) + bcd(sendingTime.getMinutes(), 1, 4)).split('').reduce( (r, i) => r + i, 0) % 2 ,
+			// PA1 = (20h+10h+8h+4h+2h+1h) mod 2
+			36:  (bcd(sendingTime.getHours(), 2, 2) + bcd(sendingTime.getHours(), 1, 4)).split('').map(i => +i).reduce( (r, i) => r + i, 0) % 2 ,
+			// PA2 = (40m+20m+10m+8m+4m+2m+1m) mod 2
+			37:  (bcd(sendingTime.getMinutes(), 2, 3) + bcd(sendingTime.getMinutes(), 1, 4)).split('').map( i => +i).reduce( (r, i) => r + i, 0) % 2 ,
 			38: '0',
 
 			39: 'marker',
@@ -170,7 +173,7 @@ JJY.prototype = {
 				const source = this.context.createBufferSource();
 				source.buffer = this.createToneBuffer("JJY JJY");
 				source.connect(this.gain);
-				source.start(startTime + 1);
+				source.start(startTime + 0.5);
 				return;
 			} else
 			if (40 <= bit && bit <= 48) {
@@ -211,8 +214,8 @@ JJY.prototype = {
 	createToneBuffer : function (code) {
 		var speed = 
 			this.config.cpm ? 6000 / this.config.cpm:
-			this.config.wpm ? 1200 / this.config.wpm:
-				50;
+				this.config.wpm ? 1200 / this.config.wpm:
+					50;
 		var unit = this.context.sampleRate * (speed / 1000);
 		var tone = this.context.sampleRate / (2 * Math.PI * this.config.tone);
 
