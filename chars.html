@@ -74,9 +74,10 @@
 			</noscript>
 
 			<script type="application/x-template" id="main">
-				<ul class="nav nav-tabs">
+				<ul class="nav nav-tabs" id="global-tabs">
 					<li class="active"><a href="#chars" data-toggle="tab">Characters</a></li>
 					<li><a href="#text" data-toggle="tab">Text</a></li>
+					<li><a href="/words.html" target="_blank">Trainer...</a></li>
 				</ul>
 
 				<div class="tab-content">
@@ -106,6 +107,10 @@
 						<section>
 							<div class="page-header">
 								<h1>Symbols</h1>
+								<p class="less">
+									<code>B&#773;T&#773;</code> → <code>=</code>,
+									<code>A&#773;R&#773;</code> → <code>+</code>
+								</p>
 							</div>
 							<div class="row">
 								<% var chars = ".,?'/()&:;=+-_$@" + '"'; %>

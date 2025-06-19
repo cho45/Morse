@@ -35,14 +35,24 @@ JJY.prototype = {
 		};
 
 		this.offset = performance.timing.navigationStart - this.config.error;
+
+		// TODO
+		const params = new URLSearchParams(location.hash.slice(1));
+		if (params.get('offset')) {
+			this.offset = +params.get('offset');
+		}
 		this.gain = this.gain || this.context.createGain();
 		this.gain.connect(this.context.destination);
 		this.gain.gain.value = this.config.gain;
+		this.bits = null;
+		this.playing = false;
 	},
 
 	start : function () {
+		this.playing = true;
 		var sent = 0;
-		setInterval( () => {
+		this.timer = setInterval( () => {
+			if (!this.playing) return;
 			const time = this.context.currentTime;
 			const now =  (this.offset + performance.now()) / 1000;
 			const willSent = Math.floor(now + 1);
@@ -52,13 +62,16 @@ JJY.prototype = {
 		}, 250);
 	},
 
+	stop: function () {
+		clearInterval(this.timer);
+		this.playing = false;
+		this.bits = null;
+	},
+
 	/**
 	 * 次の1秒の立ちあがりに同期してコードを送信する
 	 */
 	queue : function () {
-		function bcd (number, digit, bits) {
-			return (Math.floor(number % Math.pow(10, digit) / Math.pow(10, digit - 1)) + Math.pow(2, bits)).toString(2).substring(1);
-		}
 		const map = this.map;
 
 		const now = performance.now();
@@ -77,12 +90,52 @@ JJY.prototype = {
 		const startTime = anow + nextSecond;
 
 		const sendingTime = new Date(Math.floor(willSent / 60) * 60 * 1000);
+
+		const bit = willSent % 60;
+		this.bits = this.getAllBits(sendingTime);
+		let code = this.bits[bit] || '0';
+		console.log(bit, code, sendingTime);
+
+		var willSendingCallSign =
+			sendingTime.getMinutes() === 15 ||
+			sendingTime.getMinutes() === 45;
+		if (this.config.forceSendCallSign) {
+			willSendingCallSign = true;
+		}
+
+		if (willSendingCallSign) {
+			if (bit === 40) {
+				// send call sign JJY
+				const source = this.context.createBufferSource();
+				source.buffer = this.createToneBuffer("JJY JJY");
+				source.connect(this.gain);
+				source.start(startTime + 0.5);
+				return;
+			} else
+			if (40 <= bit && bit <= 48) {
+				// skip
+				return;
+			} else
+			if (50 <= bit && bit <= 58) {
+				// 停波予告はなし
+				code = '0';
+			}
+		}
+
+		const source = this.context.createBufferSource();
+		source.buffer = map[code];
+		source.connect(this.gain);
+		source.start(startTime);
+	},
+
+	getAllBits: function (sendingTime) {
+		function bcd (number, digit, bits) {
+			return (Math.floor(number % Math.pow(10, digit) / Math.pow(10, digit - 1)) + Math.pow(2, bits)).toString(2).substring(1);
+		}
 		// 1月1日を1とした通算日
 		const dayOfYear = Math.floor((sendingTime.getTime() - new Date(sendingTime.getFullYear(), 0, 1).getTime()) / (60 * 60 * 24 * 1000)) + 1;
 		const year = sendingTime.getFullYear() % 100;
-
-		const bit = willSent % 60;
-		var code = {
+		return {
 			0: 'marker',
 
 			1: bcd(sendingTime.getMinutes(), 2, 3)[0],
@@ -157,39 +210,7 @@ JJY.prototype = {
 			58: '0',
 
 			59: 'marker'
-		}[bit] || '0';
-		console.log(bit, code, sendingTime);
-
-		var willSendingCallSign =
-			sendingTime.getMinutes() === 15 ||
-			sendingTime.getMinutes() === 45;
-		if (this.config.forceSendCallSign) {
-			willSendingCallSign = true;
 		}
-
-		if (willSendingCallSign) {
-			if (bit === 40) {
-				// send call sign JJY
-				const source = this.context.createBufferSource();
-				source.buffer = this.createToneBuffer("JJY JJY");
-				source.connect(this.gain);
-				source.start(startTime + 0.5);
-				return;
-			} else
-			if (40 <= bit && bit <= 48) {
-				// skip
-				return;
-			} else
-			if (50 <= bit && bit <= 58) {
-				// 停波予告はなし
-				code = '0';
-			}
-		}
-
-		const source = this.context.createBufferSource();
-		source.buffer = map[code];
-		source.connect(this.gain);
-		source.start(startTime);
 	},
 
 	createBitBuffer : function (type) {
@@ -278,58 +299,35 @@ JJY.prototype = {
 };
 
 
-// http://www.nict.go.jp/JST/http.html
-JST = function () { this.init.apply(this, arguments) };
-JST.prototype = {
-	init : function () {
-	},
-
-	getClock : async function () {
-		const results = [];
-		results.push(await this.getJST("https://ntp-a1.nict.go.jp/cgi-bin/json"));
-		results.push(await this.getJST("https://ntp-b1.nict.go.jp/cgi-bin/json"));
-		return results;
-	},
-
-	getJST : async function (url) {
-		// XXX TCP/TLS ソケットをオープンする初期化処理やヘッダ送出時間があるため、RTT を往路・復路で同一とみなすことはできない
-		// HTML ページ側で preconnect を指定し、リクエスト前に接続をはっておくほうが良い
-		const jst = await new Promise( (resolve, reject) => {
-			var initTime, recvTime;
-			const xhr = new XMLHttpRequest();
-			xhr.onload = function (e) {
-				recvTime = Date.now();
-				const json = JSON.parse(xhr.responseText);
-				resolve({
-					initTime: initTime,
-					recvTime: recvTime,
-					sendTime: json.st * 1000
-				});
-			};
-			xhr.onerror = reject;
-			xhr.onabort = reject;
-			xhr.open("GET", url + '?' + (Date.now() / 1000));
-			initTime = Date.now();
-			xhr.send();
-		});
-
-		const rtt = jst.recvTime - jst.initTime;
-		const lb = jst.initTime - jst.sendTime;
-		const ub = jst.recvTime - jst.sendTime;
-		const error = Math.round( (lb + ub) / 2);
-		return {
-			rtt: rtt,
-			lb: lb,
-			ub: ub,
-			error: error
-		};
-	}
-};
-
 document.addEventListener("DOMContentLoaded", function (e) {
 	const jjy = new JJY();
-	document.getElementById('play').onclick = () => {
-		jjy.start();
+
+	const inputPlay = document.getElementById('play');
+	inputPlay.onclick = () => {
+		if (!jjy.playing) {
+			jjy.start();
+			inputPlay.textContent = '停止';
+		} else {
+			jjy.stop();
+			inputPlay.textContent = '再生';
+		}
+	};
+
+	const inputTone = document.getElementById('tone');
+	const inputGain = document.getElementById('gain');
+	document.getElementById('syncMode').onchange = (e) => {
+		if (e.target.checked) {
+			jjy.config.tone = 40e3 / 3;
+			jjy.config.gain = 10;
+			inputTone.disabled = true;
+			inputGain.disabled = true;
+		} else {
+			jjy.config.tone = inputTone.value;
+			jjy.config.gain = inputGain.value;
+			inputTone.disabled = false;
+			inputGain.disabled = false;
+		}
+		jjy.init();
 	};
 
 	window.addEventListener('input', function (e) {
@@ -342,9 +340,140 @@ document.addEventListener("DOMContentLoaded", function (e) {
 		console.log(jjy.config);
 	};
 
-	const element = document.getElementById('time');
+	const canvasElement = document.getElementById('canvas');
+	const ctx = canvasElement.getContext('2d');
+	function renderCanvas(bits) {
+		if (!bits) return;
+		const PADDING = 10;
+		const WIDTH   = canvasElement.width - PADDING * 2;
+		ctx.save();
+		ctx.translate(PADDING, PADDING);
+		ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+		// 60秒を20秒ごとに3行に分割して表示
+		ctx.textAlign = "left";
+		ctx.textBaseline = "top";
+
+
+		ctx.strokeStyle = '#000000';
+		ctx.lineWidth = 1;
+
+		const ONE_SEC = WIDTH / 20;
+		const WAVE_HEIGHT = 100;
+
+		const CURRENT_BIT = Math.floor(Date.now() / 1000) % 60;
+		const INTERPRET = [
+			{
+				start: 1,
+				end: 8,
+				name: '分',
+			},
+			{
+				start: 10,
+				end: 18,
+				name: '時',
+			},
+			{
+				start: 22,
+				end: 33,
+				name: '通算日',
+			},
+			{
+				start: 36,
+				end: 37,
+				name: 'パリティ',
+			},
+			{
+				start: 41,
+				end: 48,
+				name: '年',
+			},
+			{
+				start: 50,
+				end: 52,
+				name: '曜日',
+			},
+			{
+				start: 53,
+				end: 54,
+				name: 'うるう秒',
+			},
+		];
+
+		for (let line = 0; line < 3; line++) {
+			const offset = line * 20;
+
+			ctx.beginPath();
+			ctx.moveTo(0, 0,);
+			ctx.lineTo(WIDTH, 0);
+
+			// 1秒ごとのメモリ
+			ctx.font = '24px monospace';
+			for (let i = 0; i < 20; i++) {
+				const x = i * ONE_SEC;
+				ctx.moveTo(x, 0);
+				ctx.lineTo(x, i % 10 === 0 ? 30 : 10);
+				ctx.fillText(offset + i, x + 5, 0);
+			}
+			ctx.stroke();
+
+			// 1秒ごとの波形
+			ctx.translate(0, 100);
+
+			const drawWave = function (x, bit) {
+				const base = WAVE_HEIGHT * 0.1;
+				ctx.fillRect(x, base / -2, ONE_SEC, base);
+
+				const border = {
+					0: 0.8,
+					1: 0.5,
+					marker: 0.2
+				}[bit];
+
+				ctx.fillRect(x, WAVE_HEIGHT / -2, ONE_SEC * border, WAVE_HEIGHT);
+
+				ctx.fillStyle = {
+					0: 'rgb(50 186 0)',
+					1: 'rgb(227 121 0)',
+					marker: 'rgb(83 163 250)',
+				}[bit];
+				ctx.fillRect(x, WAVE_HEIGHT / 2 + 10, ONE_SEC * border, 10);
+
+				ctx.fillStyle = '#333'
+				ctx.font = '32px monospace';
+				ctx.fillText(bit === 'marker' ? 'M' : bit, x, WAVE_HEIGHT / 2 + 20);
+			}
+
+			for (let i = 0; i < 20; i++) {
+				ctx.fillStyle = (offset + i) === CURRENT_BIT ? 'hsl(200deg 21% 80%)' : 'hsl(200deg 21% 49%)';
+				const bit = bits[offset + i];
+				drawWave(i * ONE_SEC, bit);
+			}
+
+			ctx.translate(0, WAVE_HEIGHT + 10);
+
+			INTERPRET.filter( i => i.start >= offset && i.end < offset + 20).forEach( (i, index) => {
+				const start = ONE_SEC * (i.start - offset);
+				const end   = ONE_SEC * (i.end - offset + 1);
+				ctx.beginPath();
+				ctx.moveTo(start, 0);
+				ctx.lineTo(start + ONE_SEC / 2, 24);
+				ctx.lineTo(end - ONE_SEC / 2, 24);
+				ctx.lineTo(end, 0);
+				ctx.stroke();
+				ctx.font = '24px monospace';
+				ctx.fillText(i.name, start + ONE_SEC / 2, 0);
+			});
+
+			ctx.translate(0, 100);
+		}
+
+		ctx.restore();
+	}
+
+	const timeElement = document.getElementById('time');
+
 	var count = 0, time = 0, fps = 0;
-	const renderTime = function me () {
+	const render = function me () {
 		const date = new Date();
 
 		count++;
@@ -354,33 +483,15 @@ document.addEventListener("DOMContentLoaded", function (e) {
 			count = 0;
 		}
 
-		element.textContent = 
+		timeElement.textContent = 
 			date.getFullYear() + '-' + String(100 + date.getMonth() + 1).substring(1) + '-' + String(100 + date.getDay()).substring(1) + ' ' +
 			String(100 + date.getHours()).substring(1) + ':' + String(100 + date.getMinutes()).substring(1) + ":" + String(100 + date.getSeconds()).substring(1) + "." +
 			String(1000 + date.getMilliseconds()).substring(1) + ' ' + '(' + fps + ' fps)';
 
+		renderCanvas(jjy.bits);
+
 		requestAnimationFrame(me);
 	};
-	renderTime();
+	render();
 
-	setTimeout(async function () {
-		const jst = new JST();
-		const results = await jst.getClock();
-		console.log(results);
-		if (results.every(r => r.error < 100)) {
-			// 誤差100ms未満。クライアントはおそらくNTP同期されている。
-			// 同期されているならクライアントの時計を信用したほうが良いので無視
-			document.body.classList.add('correct-time');
-		} else
-		if (results.some(r => r.error < 100)) {
-			// 取得に失敗した可能性があるので無視
-		} else {
-			const error = results.reduce( (r, i) => r + i.error, 0) / results.length;
-			jjy.init({
-				error: error
-			});
-			console.log('error', error);
-			document.body.classList.add('incorrect-time');
-		}
-	}, 1000);
 });

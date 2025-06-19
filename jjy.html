@@ -38,9 +38,10 @@
 			<a href="./vhf-jjy.html">短波JJY版</a>
 		</p>
 		<p>
-			高精度タイマーである performance.now() に依存しています。
+			高精度タイマーである performance.now() に依存しています。時刻精度はブラウザによります。
 		</p>
 		<p id="time"></p>
+		<canvas id="canvas" width="1600" height="1000" style="max-width: 100%"></canvas>
 		<fieldset>
 			<legend>オプション</legend>
 			<p>
@@ -54,6 +55,10 @@
 					トーン周波数
 					<input type="number" id="tone" max="1500" min="300" step="100" value="600"> 
 				</label>
+				<label>
+					<input type="checkbox" id="syncMode"/>
+					電波時計同期モード (ヘッドフォンを繋いで音量を最大にし、シールドされていないヘッドフォンケーブルを電波時計にまきつけます。40kHz 東日本側扱いとなります)
+				</label>
 				<p></p>
 			</p>
 			<div>
@@ -66,13 +71,5 @@
 		</fieldset>
 
 		<hr>
-
-		<p>
-			性質上完全に同期した時刻にはなっていません。
-		</p>
-
-		<p>
-			<a href="http://www.nict.go.jp/JST/http.html">クライアント時刻の正しさの検証は NICT の JST API で求めています</a> 
-		</p>
 	</body>
 </html>

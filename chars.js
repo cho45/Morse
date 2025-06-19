@@ -1,10 +1,3 @@
-navigator.getMedia = (
-	navigator.getUserMedia ||
-	navigator.webkitGetUserMedia ||
-	navigator.mozGetUserMedia ||
-	navigator.msGetUserMedia
-);
-
 window.AudioContext = (
 	window.AudioContext ||
 	window.webkitAudioContext ||
@@ -111,6 +104,15 @@ $(function () {
 		character_spacing: 1
 	};
 
+	const params = new URLSearchParams(location.hash.substring(1));
+	if (params.has('text')) {
+		$('#global-tabs a[href="#text"]').tab('show')
+		$('#play-text textarea').val(params.get('text') || '');
+	}
+	if (params.has('wpm')) {
+		opts.wpm = +params.get('wpm') || 20;
+	}
+
 	$('#options form').submit(function () {
 		return false;
 	});
@@ -130,14 +132,17 @@ $(function () {
 		play.play($(this).attr('data-char'), opts);
 	});
 
+
 	$('#play-text').submit(function () {
 		try {
 			var text = $(this).find('textarea').val().replace(/\s+/g, ' ');
 			if (text) {
 				play.play(text, opts);
+				const params = new URLSearchParams(location.hash.substring(1));
+				params.set('text', text);
+				location.hash = '#' + params.toString();
 			}
 		} catch (e) { alert(e) }
 		return false;
 	});
-
 });

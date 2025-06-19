@@ -144,7 +144,7 @@ VHFJJY.prototype = {
 				// TODO 音声
 				// http://jjy.nict.go.jp/QandA/reference/JJYwav.html が再配布禁止なのでむずかしい
 				const source = this.context.createBufferSource();
-				source.buffer = this.createToneBuffer("JJY JJY " + hhmm + "          N N N N N");
+				source.buffer = this.createToneBuffer("JJY JJY " + hhmm + "             NNNNN");
 				source.connect(this.gain);
 				source.start(startTime + 1);
 			}
