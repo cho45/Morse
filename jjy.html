@@ -29,47 +29,130 @@
 			.incorrect-time #time::after {
 				content: " クライアント時刻がずれているようです。NTP などの設定をおすすめします";
 			}
+
+			body {
+				font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+				background: #f7f7fa;
+				color: #222;
+				margin: 0;
+				padding: 0;
+			}
+			main {
+				max-width: 600px;
+				margin: 2em auto;
+				background: #fff;
+				box-shadow: 0 2px 16px #0001;
+				border-radius: 12px;
+				padding: 2em 2em 1.5em 2em;
+			}
+			h1 {
+				font-size: 1.6em;
+				margin-top: 0;
+				letter-spacing: 0.05em;
+			}
+			button {
+				font-size: 1.1em;
+				padding: 0.5em 2em;
+				margin: 0.5em 0.5em 1.5em 0;
+				border: none;
+				border-radius: 6px;
+				background: #0078d7;
+				color: #fff;
+				box-shadow: 0 1px 4px #0002;
+				transition: background 0.2s;
+				cursor: pointer;
+			}
+			button#stop { background: #d70022; }
+			button:active { filter: brightness(0.95); }
+			ul {
+				background: #f3f6fa;
+				border-radius: 8px;
+				padding: 1em 1.5em;
+				margin: 1.5em 0;
+				box-shadow: 0 1px 4px #0001;
+			}
+			li {
+				margin: 0.5em 0;
+				font-size: 1.05em;
+			}
+			#stop-period.red {
+				color: #d70022;
+				font-weight: bold;
+				background: #fff0f3;
+				border-radius: 4px;
+				padding: 0.1em 0.5em;
+			}
+			fieldset {
+				margin-top: 2em;
+				border: 1px solid #e0e0e0;
+				border-radius: 8px;
+				background: #fafbfc;
+				padding: 1em 1.5em;
+			}
+			legend {
+				font-weight: bold;
+				color: #0078d7;
+			}
+			label {
+				font-size: 1em;
+			}
+			input[type="range"] {
+				width: 120px;
+				vertical-align: middle;
+			}
+			#time {
+				font-family: monospace;
+				font-size: 1.1em;
+				margin: 1.5em 0 0.5em 0;
+				color: #0078d7;
+			}
+			a {
+				color: #0078d7;
+				text-decoration: underline;
+			}
 		</style>
 	</head>
 	<body>
-		<button id="play">開始</button>
-		<p>
-			JJY を CW モードで聞いたときの音をシミュレートします。
-			<a href="./vhf-jjy.html">短波JJY版</a>
-		</p>
-		<p>
-			高精度タイマーである performance.now() に依存しています。時刻精度はブラウザによります。
-		</p>
-		<p id="time"></p>
-		<canvas id="canvas" width="1600" height="1000" style="max-width: 100%"></canvas>
-		<fieldset>
-			<legend>オプション</legend>
+		<main>
+			<h1>WebAudio JJY シミュレータ</h1>
+			<button id="play">開始</button>
 			<p>
-				<label>
-					音量
-					<input type="range" id="gain" max="1.0" min="0.0" step="0.1" value="0.5">
-				</label>
+				JJY を CW モードで聞いたときの音をシミュレートします。
+				<a href="./vhf-jjy.html">短波JJY版</a>
 			</p>
 			<p>
-				<label>
-					トーン周波数
-					<input type="number" id="tone" max="1500" min="300" step="100" value="600"> 
-				</label>
-				<label>
-					<input type="checkbox" id="syncMode"/>
-					電波時計同期モード (ヘッドフォンを繋いで音量を最大にし、シールドされていないヘッドフォンケーブルを電波時計にまきつけます。40kHz 東日本側扱いとなります)
-				</label>
-				<p></p>
+				高精度タイマーである performance.now() に依存しています。時刻精度はブラウザによります。
 			</p>
-			<div>
-				<label>
-					<input type="checkbox" id="forceSendCallSign">
-					強制的に毎分呼び出し符号送出
-				</label>
-				<p>通常は15分、45分に送出される呼び出し符号を毎分送出します</p>
-			</div>
-		</fieldset>
+			<p id="time"></p>
+			<canvas id="canvas" width="1600" height="1000" style="max-width: 100%"></canvas>
+			<fieldset>
+				<legend>オプション</legend>
+				<p>
+					<label>
+						音量
+						<input type="range" id="gain" max="1.0" min="0.0" step="0.1" value="0.5">
+					</label>
+				</p>
+				<p>
+					<label>
+						トーン周波数
+						<input type="number" id="tone" max="1500" min="300" step="100" value="600"> 
+					</label>
+					<label>
+						<input type="checkbox" id="syncMode"/>
+						電波時計同期モード (ヘッドフォンを繋いで音量を最大にし、シールドされていないヘッドフォンケーブルを電波時計にまきつけます。40kHz 東日本側扱いとなります)
+					</label>
+					<p></p>
+				</p>
+				<div>
+					<label>
+						<input type="checkbox" id="forceSendCallSign">
+						強制的に毎分呼び出し符号送出
+					</label>
+					<p>通常は15分、45分に送出される呼び出し符号を毎分送出します</p>
+				</div>
+			</fieldset>
 
-		<hr>
+		</main>
 	</body>
 </html>
