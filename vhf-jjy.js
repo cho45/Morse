@@ -1,18 +1,3 @@
-navigator.getMedia = (
-	navigator.getUserMedia ||
-	navigator.webkitGetUserMedia ||
-	navigator.mozGetUserMedia ||
-	navigator.msGetUserMedia
-);
-
-window.AudioContext = (
-	window.AudioContext ||
-	window.webkitAudioContext ||
-	window.mozAudioContext ||
-	window.msAudioContext
-);
-
-
 VHFJJY = function () { this.init.apply(this, arguments) };
 VHFJJY.prototype = {
 	init : function (config) {
@@ -27,7 +12,7 @@ VHFJJY.prototype = {
 
 		if (config) Object.assign(this.config, config);
 
-		this.offset = performance.timing.navigationStart;
+		this.offset = performance.timeOrigin;
 		this.gain = this.gain || this.context.createGain();
 		this.gain.gain.value = 0.5;
 		this.gain.connect(this.context.destination);
@@ -67,15 +52,24 @@ VHFJJY.prototype = {
 	},
 
 	start : function () {
+		if (this._intervalId) return; // すでに開始していれば何もしない
 		var sent = 0;
-		setInterval( () => {
+		this._intervalId = setInterval(() => {
 			const time = this.context.currentTime;
-			const now =  (this.offset + performance.now()) / 1000;
+			const now = (this.offset + performance.now()) / 1000;
 			const willSent = Math.floor(now + 1);
 			if (sent === willSent) return;
 			sent = willSent;
 			this.queue();
 		}, 250);
+	},
+
+	stop: function () {
+		if (this._intervalId) {
+			clearInterval(this._intervalId);
+			this._intervalId = null;
+			this.status = "stopped";
+		}
 	},
 
 	queue : function () {
@@ -221,6 +215,13 @@ document.addEventListener("DOMContentLoaded", function (e) {
 	const jjy = new VHFJJY();
 	document.getElementById('play').onclick = () => {
 		jjy.start();
+		document.getElementById('play').style.display = 'none';
+		document.getElementById('stop').style.display = '';
+	};
+	document.getElementById('stop').onclick = () => {
+		jjy.stop();
+		document.getElementById('play').style.display = '';
+		document.getElementById('stop').style.display = 'none';
 	};
 
 	window.addEventListener('input', function (e) {
