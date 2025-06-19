@@ -3,42 +3,125 @@
 	<head>
 		<meta charset="utf-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-
 		<title>WebAudio 短波JJY シミュレータ</title>
-
 		<link rev="made" href="mailto:cho45@lowreal.net"/>
 		<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon"/>
-
 		<script type="text/javascript" src="lib/micro-template.js"></script>
 		<script type="text/javascript" src="morse.js"></script>
 		<script type="text/javascript" src="vhf-jjy.js"></script>
+		<style>
+			#stop-period.red { color: red; font-weight: bold; }
+			body {
+				font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+				background: #f7f7fa;
+				color: #222;
+				margin: 0;
+				padding: 0;
+			}
+			main {
+				max-width: 600px;
+				margin: 2em auto;
+				background: #fff;
+				box-shadow: 0 2px 16px #0001;
+				border-radius: 12px;
+				padding: 2em 2em 1.5em 2em;
+			}
+			h1 {
+				font-size: 1.6em;
+				margin-top: 0;
+				letter-spacing: 0.05em;
+			}
+			button {
+				font-size: 1.1em;
+				padding: 0.5em 2em;
+				margin: 0.5em 0.5em 1.5em 0;
+				border: none;
+				border-radius: 6px;
+				background: #0078d7;
+				color: #fff;
+				box-shadow: 0 1px 4px #0002;
+				transition: background 0.2s;
+				cursor: pointer;
+			}
+			button#stop { background: #d70022; }
+			button:active { filter: brightness(0.95); }
+			ul {
+				background: #f3f6fa;
+				border-radius: 8px;
+				padding: 1em 1.5em;
+				margin: 1.5em 0;
+				box-shadow: 0 1px 4px #0001;
+			}
+			li {
+				margin: 0.5em 0;
+				font-size: 1.05em;
+			}
+			#stop-period.red {
+				color: #d70022;
+				font-weight: bold;
+				background: #fff0f3;
+				border-radius: 4px;
+				padding: 0.1em 0.5em;
+			}
+			fieldset {
+				margin-top: 2em;
+				border: 1px solid #e0e0e0;
+				border-radius: 8px;
+				background: #fafbfc;
+				padding: 1em 1.5em;
+			}
+			legend {
+				font-weight: bold;
+				color: #0078d7;
+			}
+			label {
+				font-size: 1em;
+			}
+			input[type="range"] {
+				width: 120px;
+				vertical-align: middle;
+			}
+			#time {
+				font-family: monospace;
+				font-size: 1.1em;
+				margin: 1.5em 0 0.5em 0;
+				color: #0078d7;
+			}
+			a {
+				color: #0078d7;
+				text-decoration: underline;
+			}
+		</style>
 	</head>
 	<body>
-		<button id="play">開始</button>
-		<button id="stop" style="display:none">停止</button>
-		<p>
-			かつて運用されていた (2001年閉局) 短波 JJY を音声をのぞいて再現します。
-			<a href="./jjy.html">現行JJY版</a>
-		</p>
-		<ul>
-			<li>秒信号: 毎秒0.000秒から0.005秒まで1600Hz</li>
-			<li>分予告信号: 毎分59.045秒から59.700秒まで600Hz</li>
-			<li>10分毎に5分間は毎秒0.045秒から0.960秒まで1000Hz。ただし59秒のときは除く (分予告信号を優先)</li>
-			<li>10分毎に9分30.000秒から9分52.000秒までコールサインと時報・電波警報をモールス符号で送信</li>
-			<li>毎時35分0秒から39分0秒までは停止</li>
-		</ul>
-		<p>
-			高精度タイマーである performance.now() に依存しています。
-		</p>
-		<p id="time">waiting</p>
-		<fieldset>
-			<legend>オプション</legend>
+		<main>
+			<h1>WebAudio 短波JJY シミュレータ</h1>
+			<button id="play">開始</button>
+			<button id="stop" style="display:none">停止</button>
 			<p>
-				<label>
-					音量
-					<input type="range" id="gain" max="1.0" min="0.0" step="0.1" value="0.5">
-				</label>
+				かつて運用されていた (2001年閉局) 短波 JJY を音声をのぞいて再現します。
+				<a href="./jjy.html">現行JJY版</a>
 			</p>
-		</fieldset>
+			<ul>
+				<li>秒信号: 毎秒0.000秒から0.005秒まで1600Hz</li>
+				<li>分予告信号: 毎分59.045秒から59.700秒まで600Hz</li>
+				<li>10分毎に5分間は毎秒0.045秒から0.960秒まで1000Hz。ただし59秒のときは除く (分予告信号を優先)</li>
+				<li>10分毎に9分30.000秒から9分52.000秒までコールサインと時報・電波警報をモールス符号で送信</li>
+				<li id="stop-period">毎時35分0秒から39分0秒までは停止</li>
+			</ul>
+			<p>
+				高精度タイマーである performance.now() に依存しています。
+			</p>
+			<p id="time">waiting</p>
+			<fieldset>
+				<legend>オプション</legend>
+				<p>
+					<label>
+						音量
+						<input type="range" id="gain" max="1.0" min="0.0" step="0.1" value="0.5">
+					</label>
+				</p>
+			</fieldset>
+		</main>
 	</body>
 </html>

@@ -211,6 +211,7 @@ VHFJJY.prototype = {
 	}
 };
 
+
 document.addEventListener("DOMContentLoaded", function (e) {
 	const jjy = new VHFJJY();
 	document.getElementById('play').onclick = () => {
@@ -249,4 +250,18 @@ document.addEventListener("DOMContentLoaded", function (e) {
 		requestAnimationFrame(me);
 	};
 	renderTime();
+
+	function updateStopPeriodColor() {
+		var now = new Date();
+		var min = now.getMinutes();
+		var li = document.getElementById('stop-period');
+		if (li) {
+			if (min >= 35 && min < 39) {
+				li.classList.add('red');
+			} else {
+				li.classList.remove('red');
+			}
+		}
+	}
+	setInterval(updateStopPeriodColor, 1000);
 });
