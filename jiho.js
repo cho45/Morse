@@ -1,18 +1,3 @@
-navigator.getMedia = (
-	navigator.getUserMedia ||
-	navigator.webkitGetUserMedia ||
-	navigator.mozGetUserMedia ||
-	navigator.msGetUserMedia
-);
-
-window.AudioContext = (
-	window.AudioContext ||
-	window.webkitAudioContext ||
-	window.mozAudioContext ||
-	window.msAudioContext
-);
-
-
 JIHO = function () { this.init.apply(this, arguments) };
 JIHO.prototype = {
 	init : function (config) {
@@ -137,6 +122,7 @@ document.addEventListener("DOMContentLoaded", function (e) {
 	const jiho = new JIHO();
 	document.getElementById('play').onclick = () => {
 		jiho.start();
+		document.getElementById('play').disabled = true;
 	};
 
 	window.addEventListener('input', function (e) {
@@ -144,6 +130,8 @@ document.addEventListener("DOMContentLoaded", function (e) {
 		jiho.init();
 	});
 
+	const dateElem = document.getElementById('date');
+	const clockElem = document.getElementById('clock');
 	const element = document.getElementById('time');
 	var count = 0, time = 0, fps = 0;
 	const renderTime = function me () {
@@ -156,8 +144,18 @@ document.addEventListener("DOMContentLoaded", function (e) {
 			count = 0;
 		}
 
-		element.textContent = 
-			date.getFullYear() + '-' + String(100 + date.getMonth() + 1).substring(1) + '-' + String(100 + date.getDay()).substring(1) + ' ' +
+		// 日付
+		dateElem.textContent =
+			date.getFullYear() + '-' + String(100 + date.getMonth() + 1).substring(1) + '-' + String(100 + date.getDate()).substring(1);
+		// 時刻（ミリ秒以下も表示）
+		clockElem.textContent =
+			String(100 + date.getHours()).substring(1) + ':' +
+			String(100 + date.getMinutes()).substring(1) + ':' +
+			String(100 + date.getSeconds()).substring(1) + '.' +
+			String(1000 + date.getMilliseconds()).substring(1);
+
+		element.textContent =
+			date.getFullYear() + '-' + String(100 + date.getMonth() + 1).substring(1) + '-' + String(100 + date.getDate()).substring(1) + ' ' +
 			String(100 + date.getHours()).substring(1) + ':' + String(100 + date.getMinutes()).substring(1) + ":" + String(100 + date.getSeconds()).substring(1) + "." +
 			String(1000 + date.getMilliseconds()).substring(1) + ' ' + '(' + fps + ' fps)';
 
