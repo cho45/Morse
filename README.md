@@ -1,14 +1,16 @@
 # play-morse.lowreal.net
 
+https://play-morse.lowreal.net/what.html
+
 ## 各ページの説明
 
-- [chars.html](chars.html)
+- [chars.html](https://play-morse.lowreal.net/chars.html)
   - モールス符号の各文字を聞いて覚えるためのページ。タブで文字や文章、トレーナーへのリンクも。
-- [jiho.html](jiho.html)
+- [jiho.html](https://play-morse.lowreal.net/jiho.html)
   - 時報のモールス符号再生デモ。開始ボタンで時刻を表示。
-- [jjy.html](jjy.html)
+- [jjy.html](https://play-morse.lowreal.net/jjy.html)
   - WebAudioによるJJY（標準電波）のCWモードシミュレータ。時刻同期やオプション設定あり。
-- [vhf-jjy.html](vhf-jjy.html)
+- [vhf-jjy.html](https://play-morse.lowreal.net/vhf-jjy.html)
   - かつて運用されていた短波JJYのシミュレータ。現行JJY版へのリンクも。
 
 ## 使い方
