@@ -58,7 +58,7 @@ class JIHO {
 	start() {
 		this.preloadVoiceBuffers();
 		var sent = 0;
-		setInterval(() => {
+		this.interval = setInterval(() => {
 			const time = this.context.currentTime;
 			const now =  (this.offset + performance.now()) / 1000;
 			const willSent = Math.floor(now + 1);
@@ -66,6 +66,10 @@ class JIHO {
 			sent = willSent;
 			this.queue();
 		}, 250);
+	}
+
+	stop() {
+		clearInterval(this.interval);
 	}
 
 	/**
@@ -106,7 +110,7 @@ class JIHO {
 			const buffer = this.context.createBuffer(1, this.context.sampleRate + 1e3, this.context.sampleRate);
 			const data   = buffer.getChannelData(0);
 			for (let i = 0, len = samples; i < len; i++) {
-				data[i] = Math.sin(i++ / tone);
+				data[i] = Math.sin(i / tone);
 			}
 			// remove ticking (fade)
 			for (let f = 0, e = this.context.sampleRate * 0.004; f < e; f++) {
@@ -133,7 +137,7 @@ class JIHO {
 			const buffer = this.context.createBuffer(1, this.context.sampleRate + 1e3, this.context.sampleRate);
 			const data   = buffer.getChannelData(0);
 			for (let i = 0, len = samples; i < len; i++) {
-				data[i] = Math.sin(i++ / tone);
+				data[i] = Math.sin(i / tone);
 			}
 			// remove ticking (fade)
 			for (let f = 0, e = this.context.sampleRate * 0.004; f < e; f++) {
