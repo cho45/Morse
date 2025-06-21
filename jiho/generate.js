@@ -18,7 +18,6 @@ const QUERY_FILE = path.join(__dirname, 'jiho_queries.json');
 const OUTPUT_DIR = path.join(__dirname, 'jiho_audio');
 
 const FIXED_PHRASES = [
-	'ちょうど',
 	'正午をお知らせします',
 	'をお知らせします',
 	// 必要に応じて追加
@@ -59,7 +58,12 @@ function makeMinuteText(minute) {
 		0: 'れいふん',
 	}[minute];
 	if (text) return text;
-	return `${minute}分`;
+	return `${minute}ふん`;
+}
+function makeSecondText(second) {
+	if (second % 10 !== 0) return null;
+	if (second === 0) return 'ちょうど';
+	return `${second}びょう`;
 }
 
 function parseArgs() {
@@ -115,6 +119,8 @@ async function synthesizeAll(parallel) {
 				filename = `minute_${q.minute}`;
 			} else if (q.type === 'phrase') {
 				filename = `phrase_${filename}`;
+			} else if (q.type === 'second') {
+				filename = `second_${q.second}`;
 			}
 			const outPath = path.join(OUTPUT_DIR, filename + '.wav');
 			if (fs.existsSync(outPath)) {
@@ -149,6 +155,14 @@ async function generateQueries() {
 		const query = await fetchAudioQuery(text);
 		queries.push({ type: 'minute', minute, text, query });
 		console.log(`Generated: ${text}`);
+	}
+	for (let second = 0; second < 60; second += 10) {
+		const text = makeSecondText(second);
+		if (text) {
+			const query = await fetchAudioQuery(text);
+			queries.push({ type: 'second', second, text, query });
+			console.log(`Generated: ${text}`);
+		}
 	}
 	// 固定文言
 	for (const phrase of FIXED_PHRASES) {

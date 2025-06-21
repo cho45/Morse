@@ -10,19 +10,33 @@ JIHO.prototype = {
 			tone3: 500
 		};
 		*/
-		this.config = this.config || {
-			gain: 0.5,
+		this.config = {
+			toneGain: 0.5,
 			tone1: 1760,
 			tone2: 880,
-			tone3: 440
+			tone3: 440,
+			outputGain: 0.9,
+			voiceGain: 2,
 		};
 
 		if (config) Object.assign(this.config, config);
 
 		this.offset = performance.timing.navigationStart;
-		this.gain = this.gain || this.context.createGain();
-		this.gain.connect(this.context.destination);
-		this.gain.gain.value = this.config.gain;
+
+		this.outputGain = this.context.createGain();
+		this.outputGain.connect(this.context.destination);
+		this.outputGain.gain.value = this.config.outputGain;
+
+		this.toneGain = this.context.createGain();
+		this.toneGain.connect(this.outputGain);
+		this.toneGain.gain.value = this.config.toneGain;
+
+		this.voiceGain = this.context.createGain();
+		this.voiceGain.connect(this.outputGain);
+		this.voiceGain.gain.value = this.config.voiceGain;
+
+		this.voicePath = "./jiho/zunda";
+		this.preloadVoiceBuffers();
 	},
 
 	start : function () {
@@ -113,9 +127,82 @@ JIHO.prototype = {
 
 		const source = this.context.createBufferSource();
 		source.buffer = send;
-		source.connect(this.gain);
+		source.connect(this.toneGain);
 		source.start(startTime);
-	}
+
+		const date = new Date(Date.now() + 10 * 1000);
+		this.playVoiceNotice(startTime + 0.5, date.getHours(), date.getMinutes(), date.getSeconds());
+	},
+
+	_voiceBufferCache: {},
+
+	// 1分以内に使う音声ファイルを事前にfetch+decodeしてキャッシュ
+	async preloadVoiceBuffers() {
+		const ctx = this.context;
+		const files = [];
+		for (let h = 0; h < 24; h++) files.push(`hour_${h}.mp3`);
+		for (let m = 0; m < 60; m++) files.push(`minute_${m}.mp3`);
+		for (let s = 0; s < 60; s += 10) files.push(`second_${s}.mp3`);
+		const phrases = [
+			'正午をお知らせします', 'をお知らせします'
+		];
+		for (const p of phrases) files.push(`phrase_${p}.mp3`);
+
+		const basePath = this.voicePath;
+		const cache = {};
+		await Promise.all(files.map(async (file) => {
+			try {
+				const res = await fetch(`${basePath}/${file}`);
+				if (!res.ok) return;
+				const buf = await res.arrayBuffer();
+				cache[file] = await ctx.decodeAudioData(buf);
+			} catch (e) {
+				console.warn('preload failed', file, e);
+			}
+		}));
+		this._voiceBufferCache = cache;
+	},
+
+	// 指定時刻の音声ファイル名リストを返す
+	_voiceNoticeFiles: function(hour, minute, second) {
+		const files = [];
+		if (hour === 12 && minute === 0 && second === 0) {
+			files.push('phrase_正午をお知らせします.mp3');
+		} else {
+			if (hour > 0) files.push(`hour_${hour}.mp3`);
+			if (minute > 0) files.push(`minute_${minute}.mp3`);
+			files.push(`second_${second}.mp3`);
+			files.push('phrase_をお知らせします.mp3');
+		}
+		return files;
+	},
+
+	// 音声合成ファイルを順次再生（AudioBuffer.durationで正確に連続再生）
+	playVoiceNotice: async function(start, hour, minute, second) {
+		console.log('playVoiceNotice', hour, minute, second);
+		if (second % 10 !== 0) {
+			// 秒が10の倍数でない場合は音声再生しない
+			return;
+		}
+
+		await this.preloadVoiceBuffers();
+		const ctx = this.context;
+		const files = this._voiceNoticeFiles(hour, minute, second);
+		console.log('preloadVoiceBuffers done', files);
+		let t = start;
+		for (const file of files) {
+			let buffer = this._voiceBufferCache[file];
+			if (!buffer) {
+				// キャッシュにない場合は今回スキップ
+				return;
+			}
+			const src = ctx.createBufferSource();
+			src.buffer = buffer;
+			src.connect(this.voiceGain);
+			src.start(t);
+			t += buffer.duration;
+		}
+	},
 };
 
 document.addEventListener("DOMContentLoaded", function (e) {
@@ -124,11 +211,6 @@ document.addEventListener("DOMContentLoaded", function (e) {
 		jiho.start();
 		document.getElementById('play').disabled = true;
 	};
-
-	window.addEventListener('input', function (e) {
-		jiho.config[e.target.id] = e.target.value;
-		jiho.init();
-	});
 
 	const dateElem = document.getElementById('date');
 	const clockElem = document.getElementById('clock');
