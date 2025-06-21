@@ -191,7 +191,7 @@ class JIHO {
 		if (hour === 12 && minute === 0 && second === 0) {
 			files.push('phrase_正午をお知らせします.mp3');
 		} else {
-			if (hour > 0) files.push(`hour_${hour}.mp3`);
+			files.push(`hour_${hour}.mp3`);
 			if (minute > 0) files.push(`minute_${minute}.mp3`);
 			files.push(`second_${second}.mp3`);
 			files.push('phrase_をお知らせします.mp3');
