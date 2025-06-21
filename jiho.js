@@ -186,7 +186,10 @@ class JIHO {
 			if (cache[file]) continue;
 			cache[file] = (async () => {
 				const res = await fetch(`${basePath}/${file}`);
-				if (!res.ok) return;
+				if (!res.ok) {
+					console.error('Failed to fetch voice file:', file, res.status, res.statusText);
+					return;
+				}
 				const buf = await res.arrayBuffer();
 				const audioData = await ctx.decodeAudioData(buf);
 				console.log('preloaded', file, audioData.duration);
@@ -226,6 +229,7 @@ class JIHO {
 			let buffer = await this._voiceBufferCache[file];
 			if (!buffer) {
 				// キャッシュにない場合は今回スキップ
+				console.warn('Voice buffer not found in cache:', file);
 				return;
 			}
 			const src = ctx.createBufferSource();
