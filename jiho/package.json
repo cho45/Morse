@@ -1,0 +1,9 @@
+{
+  "name": "jiho-generate",
+  "type": "module",
+  "version": "1.0.0",
+  "main": "generate.js",
+  "dependencies": {
+    "axios": "^1.6.8"
+  }
+}

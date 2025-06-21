@@ -3,6 +3,7 @@
 // usage:
 //   node generate.js query   # クエリ生成・保存
 //   node generate.js synth [並列数]  # 一括合成（デフォルト4並列）
+//   node generate.js list-speakers   # speaker一覧表示
 
 import fs from 'fs';
 import path from 'path';
@@ -159,14 +160,25 @@ async function generateQueries() {
 	console.log(`Saved queries to ${QUERY_FILE}`);
 }
 
+async function listSpeakers() {
+	const res = await fetch(`${API_BASE}/speakers`);
+	if (!res.ok) throw new Error('speakers取得失敗');
+	const speakers = await res.json();
+	for (const sp of speakers) {
+		console.log(`ID: ${sp.styles.map(s => s.id).join(', ')}\tNAME: ${sp.name}`);
+	}
+}
+
 (async () => {
 	const { mode, parallel } = parseArgs();
 	if (mode === 'query') {
 		await generateQueries();
 	} else if (mode === 'synth') {
 		await synthesizeAll(parallel);
+	} else if (mode === 'list-speakers') {
+		await listSpeakers();
 	} else {
-		console.log('usage: node generate.js [query|synth] [並列数]');
+		console.log('usage: node generate.js [query|synth|list-speakers] [並列数]');
 		process.exit(1);
 	}
 })();
