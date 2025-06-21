@@ -1,4 +1,10 @@
+const SECOND_TONE_DURATION = 100e-3; // 秒のトーンの持続時間（秒）
+const MINUTES_TONE_DURATION = 3; // 分のトーンの持続時間（秒）
+const FADE_DURATION = 4e-3; // フェードアウトの持続時間（秒）
+const VOICE_NOTICE_DURATION = 10;
+
 class JIHO {
+
 	constructor(config) {
 		this.context = this.context || new AudioContext();
 		/* NTT
@@ -104,8 +110,8 @@ class JIHO {
 
 		var send;
 		if ( (27 <= sec && sec < 30) || (57 <= sec) ) {
-			// 予告
-			const samples = this.context.sampleRate * 100e-3;
+			// 30秒と0秒の前3秒は予告
+			const samples = this.context.sampleRate * SECOND_TONE_DURATION;
 			const tone = this.context.sampleRate / (2 * Math.PI * this.config.tone3);
 			const buffer = this.context.createBuffer(1, this.context.sampleRate + 1e3, this.context.sampleRate);
 			const data   = buffer.getChannelData(0);
@@ -113,13 +119,13 @@ class JIHO {
 				data[i] = Math.sin(i / tone);
 			}
 			// remove ticking (fade)
-			for (let f = 0, e = this.context.sampleRate * 0.004; f < e; f++) {
+			for (let f = 0, e = this.context.sampleRate * FADE_DURATION; f < e; f++) {
 				data[samples - f] = data[samples - f] * (f / e); 
 			}
 			send = buffer
 		} else
 		if (sec % 10 === 0) {
-			const samples = this.context.sampleRate * 3;
+			const samples = this.context.sampleRate * MINUTES_TONE_DURATION;
 			const tone = this.context.sampleRate / (2 * Math.PI * this.config.tone2);
 			const buffer = this.context.createBuffer(1, samples + 1e3, this.context.sampleRate);
 			const data   = buffer.getChannelData(0);
@@ -132,7 +138,7 @@ class JIHO {
 			}
 			send = buffer
 		} else {
-			const samples = this.context.sampleRate * 100e-3
+			const samples = this.context.sampleRate * SECOND_TONE_DURATION;
 			const tone = this.context.sampleRate / (2 * Math.PI * this.config.tone1);
 			const buffer = this.context.createBuffer(1, this.context.sampleRate + 1e3, this.context.sampleRate);
 			const data   = buffer.getChannelData(0);
@@ -140,7 +146,7 @@ class JIHO {
 				data[i] = Math.sin(i / tone);
 			}
 			// remove ticking (fade)
-			for (let f = 0, e = this.context.sampleRate * 0.004; f < e; f++) {
+			for (let f = 0, e = this.context.sampleRate * FADE_DURATION; f < e; f++) {
 				data[samples - f] = data[samples - f] * (f / e); 
 			}
 			send = buffer
@@ -151,7 +157,7 @@ class JIHO {
 		source.connect(this.toneGain);
 		source.start(startTime);
 
-		const date = new Date(Date.now() + 10 * 1000);
+		const date = new Date(Date.now() + VOICE_NOTICE_DURATION * 1000);
 		this.playVoiceNotice(startTime + 0.5, date.getHours(), date.getMinutes(), date.getSeconds());
 	}
 
