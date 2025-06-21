@@ -1,6 +1,5 @@
-JIHO = function () { this.init.apply(this, arguments) };
-JIHO.prototype = {
-	init : function (config) {
+class JIHO {
+	constructor(config) {
 		this.context = this.context || new AudioContext();
 		/* NTT
 		this.config = this.config || {
@@ -21,7 +20,7 @@ JIHO.prototype = {
 
 		if (config) Object.assign(this.config, config);
 
-		this.offset = performance.timing.navigationStart;
+		this.offset = performance.timeOrigin || 0;
 
 		this.outputGain = this.context.createGain();
 		this.outputGain.connect(this.context.destination);
@@ -35,13 +34,15 @@ JIHO.prototype = {
 		this.voiceGain.connect(this.outputGain);
 		this.voiceGain.gain.value = this.config.voiceGain;
 
-		this.voicePath = "./jiho/zunda";
+		this.voicePath = this.config.voicePath || "./jiho/zunda";
+		this._voiceBufferCache = {};
 		this.preloadVoiceBuffers();
-	},
+	}
 
-	start : function () {
+	start() {
+		this.preloadVoiceBuffers();
 		var sent = 0;
-		setInterval( () => {
+		setInterval(() => {
 			const time = this.context.currentTime;
 			const now =  (this.offset + performance.now()) / 1000;
 			const willSent = Math.floor(now + 1);
@@ -49,12 +50,12 @@ JIHO.prototype = {
 			sent = willSent;
 			this.queue();
 		}, 250);
-	},
+	}
 
 	/**
 	 * 次の1秒の立ちあがりに同期してコードを送信する
 	 */
-	queue : function () {
+	queue() {
 		function bcd (number, digit, bits) {
 			return (Math.floor(number % Math.pow(10, digit) / Math.pow(10, digit - 1)) + Math.pow(2, bits)).toString(2).substring(1);
 		}
@@ -132,39 +133,44 @@ JIHO.prototype = {
 
 		const date = new Date(Date.now() + 10 * 1000);
 		this.playVoiceNotice(startTime + 0.5, date.getHours(), date.getMinutes(), date.getSeconds());
-	},
+	}
 
-	_voiceBufferCache: {},
-
-	// 1分以内に使う音声ファイルを事前にfetch+decodeしてキャッシュ
+	// 1分以内に使う音声ファイルのみfetch+decodeしてキャッシュ
 	async preloadVoiceBuffers() {
+		if (this.voicePath === null) return;
 		const ctx = this.context;
-		const files = [];
-		for (let h = 0; h < 24; h++) files.push(`hour_${h}.mp3`);
-		for (let m = 0; m < 60; m++) files.push(`minute_${m}.mp3`);
-		for (let s = 0; s < 60; s += 10) files.push(`second_${s}.mp3`);
-		const phrases = [
-			'正午をお知らせします', 'をお知らせします'
-		];
-		for (const p of phrases) files.push(`phrase_${p}.mp3`);
-
+		const files = new Set();
+		const now = new Date();
+		for (let i = 10; i < 60; i++) {
+			const t = new Date(now.getTime() + i * 1000);
+			const hour = t.getHours();
+			const minute = t.getMinutes();
+			const second = t.getSeconds();
+			if (second % 10 !== 0) {
+				continue;
+			}
+			for (const f of this._voiceNoticeFiles(hour, minute, second)) {
+				files.add(f);
+			}
+		}
 		const basePath = this.voicePath;
-		const cache = {};
-		await Promise.all(files.map(async (file) => {
-			try {
+		const cache = this._voiceBufferCache;
+		console.log('preloadVoiceBuffers', files);
+		for (const file of files.values()) {
+			if (cache[file]) continue;
+			cache[file] = (async () => {
 				const res = await fetch(`${basePath}/${file}`);
 				if (!res.ok) return;
 				const buf = await res.arrayBuffer();
-				cache[file] = await ctx.decodeAudioData(buf);
-			} catch (e) {
-				console.warn('preload failed', file, e);
-			}
-		}));
-		this._voiceBufferCache = cache;
-	},
+				const audioData = await ctx.decodeAudioData(buf);
+				console.log('preloaded', file, audioData.duration);
+				return audioData;
+			})();
+		}
+	}
 
 	// 指定時刻の音声ファイル名リストを返す
-	_voiceNoticeFiles: function(hour, minute, second) {
+	_voiceNoticeFiles(hour, minute, second) {
 		const files = [];
 		if (hour === 12 && minute === 0 && second === 0) {
 			files.push('phrase_正午をお知らせします.mp3');
@@ -175,23 +181,23 @@ JIHO.prototype = {
 			files.push('phrase_をお知らせします.mp3');
 		}
 		return files;
-	},
+	}
 
 	// 音声合成ファイルを順次再生（AudioBuffer.durationで正確に連続再生）
-	playVoiceNotice: async function(start, hour, minute, second) {
-		console.log('playVoiceNotice', hour, minute, second);
+	async playVoiceNotice(start, hour, minute, second) {
+		if (this.voicePath === null) return;
+
 		if (second % 10 !== 0) {
 			// 秒が10の倍数でない場合は音声再生しない
 			return;
 		}
+		this.preloadVoiceBuffers();
 
-		await this.preloadVoiceBuffers();
 		const ctx = this.context;
 		const files = this._voiceNoticeFiles(hour, minute, second);
-		console.log('preloadVoiceBuffers done', files);
 		let t = start;
 		for (const file of files) {
-			let buffer = this._voiceBufferCache[file];
+			let buffer = await this._voiceBufferCache[file];
 			if (!buffer) {
 				// キャッシュにない場合は今回スキップ
 				return;
@@ -202,11 +208,43 @@ JIHO.prototype = {
 			src.start(t);
 			t += buffer.duration;
 		}
-	},
-};
+	}
+}
 
 document.addEventListener("DOMContentLoaded", function (e) {
-	const jiho = new JIHO();
+	const params = new URLSearchParams(location.search);
+	const voice = params.get('voice') || 'metan';
+
+	const VOICES = [
+		{
+			id: 'none',
+			credit: '',
+			voicePath: null,
+		},
+		{
+			id: 'metan',
+			credit: '声: VOICEVOX:四国めたん',
+			voicePath: './jiho/metan',
+		},
+		{
+			id: 'zunda',
+			credit: '声: VOICEVOX:ずんだもん',
+			voicePath: './jiho/zunda',
+		}
+	]
+
+	let voiceParams = VOICES.find(v => v.id === voice);
+	if (!voiceParams) {
+		console.error('Invalid voice parameter:', voice);
+		voiceParams = VOICES[0]; // デフォルトは最初の音声
+		return;
+	}
+
+	document.getElementById('credit').textContent = voiceParams.credit;
+
+	const jiho = new JIHO({
+		voicePath: voiceParams.voicePath,
+	});
 	document.getElementById('play').onclick = () => {
 		jiho.start();
 		document.getElementById('play').disabled = true;

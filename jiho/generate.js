@@ -23,6 +23,10 @@ const FIXED_PHRASES = [
 	// 必要に応じて追加
 ];
 
+const OVERRIDE_PARAMETERS = {
+	speedScale: 0.8,
+};
+
 function makeHourText(hour) {
 	const text = {
 		0: 'れいじ',
@@ -91,7 +95,10 @@ async function fetchSynthesis(query, text) {
 	const res = await fetch(`${API_BASE}/synthesis?${params.toString()}`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(query),
+		body: JSON.stringify({
+			...query,
+			...OVERRIDE_PARAMETERS
+		}),
 	});
 	if (!res.ok) throw new Error(`synthesis failed: ${text}`);
 	return await res.arrayBuffer();

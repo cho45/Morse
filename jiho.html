@@ -72,6 +72,18 @@
 				color: #999;
 				text-decoration: none;
 			}
+
+			footer {
+				position: fixed;
+				font-size: 80%;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				background: #f7f7fa;
+				border-top: 1px solid #ddd;
+				padding: 0.5em 0;
+				text-align: center;
+			}
 		</style>
 	</head>
 	<body>
@@ -81,12 +93,12 @@
 			<p id="date"></p>
 			<p id="clock"></p>
 			<p id="time" style="display:none"></p>
-			<p id="credit">
-				声:
-				<a href="https://voicevox.hiroshiba.jp/">
-				VOICEVOX:ずんだもん
-				</a>
-			</p>
+			<p id="credit"></p>
 		</main>
+		<footer>
+			<a href="?voice=none">声なし</a>
+			<a href="?voice=zunda">ずんだもん</a>
+			<a href="?voice=metan">四国めたん</a>
+		</footer>
 	</body>
 </html>
