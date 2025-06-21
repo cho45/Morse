@@ -34,6 +34,22 @@ class JIHO {
 		this.voiceGain.connect(this.outputGain);
 		this.voiceGain.gain.value = this.config.voiceGain;
 
+		this.highpass = this.context.createBiquadFilter();
+		this.highpass.type = "highpass";
+		this.highpass.frequency.value = 300;
+
+		this.lowpass = this.context.createBiquadFilter();
+		this.lowpass.type = "lowpass";
+		this.lowpass.frequency.value = 3400;
+
+		if (config.telephone) {
+			// outputGain → highpass → lowpass → destination
+			this.outputGain.disconnect();
+			this.outputGain.connect(this.highpass);
+			this.highpass.connect(this.lowpass);
+			this.lowpass.connect(this.context.destination);
+		}
+
 		this.voicePath = this.config.voicePath || "./jiho/zunda";
 		this._voiceBufferCache = {};
 		this.preloadVoiceBuffers();
@@ -214,6 +230,8 @@ class JIHO {
 document.addEventListener("DOMContentLoaded", function (e) {
 	const params = new URLSearchParams(location.search);
 	const voice = params.get('voice') || 'metan';
+	const telephone = params.has('telephone') ? params.get('telephone') === 'true' : false;
+	console.log({voice, telephone});
 
 	const VOICES = [
 		{
@@ -244,6 +262,7 @@ document.addEventListener("DOMContentLoaded", function (e) {
 
 	const jiho = new JIHO({
 		voicePath: voiceParams.voicePath,
+		telephone,
 	});
 	document.getElementById('play').onclick = () => {
 		jiho.start();
