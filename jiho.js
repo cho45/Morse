@@ -121,13 +121,12 @@ class JIHO {
 			return;
 		}
 		this.preloadVoiceBuffers();
-		var sent = 0;
+		// sentは絶対時刻（秒単位）で管理することで、システム時計補正やoffset補正の影響を受けにくくする
+		let sent = 0;
 		this.interval = setInterval(() => {
-			const time = this.context.currentTime;
-			const now =  (this.offset + performance.now()) / 1000;
-			const willSent = Math.floor(now + 1);
-			if (sent === willSent) return;
-			sent = willSent;
+			const nowSec = Math.floor(Date.now() / 1000);
+			if (sent === nowSec) return;
+			sent = nowSec;
 			this.queue();
 		}, 250);
 	}
