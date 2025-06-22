@@ -3,6 +3,50 @@ const MINUTES_TONE_DURATION = 3; // 分のトーンの持続時間（秒）
 const FADE_DURATION = 4e-3; // フェードアウトの持続時間（秒）
 const VOICE_NOTICE_DURATION = 10;
 
+// ClockMonitor: システム時計の大幅な変更（NTP補正・手動変更等）を検知し、イベントを発行するクラス
+// WebAudioやperformance.now()はmonotonicな経過時間だが、絶対時刻（Date.now()）はシステム時計依存でジャンプすることがある
+// そのため、performance.timeOrigin+performance.now()で絶対時刻を計算している場合、
+// システム時計が変化しても自動で補正されない（ズレたままになる）
+// このクラスは、定期的にDate.now()とperformance.timeOrigin+performance.now()の差分を監視し、
+// 一定以上の差分が発生した場合に"clockchange"イベントを発行することで、
+// 利用側がoffset等を補正できるようにする
+class ClockMonitor extends EventTarget {
+	constructor({ threshold = 2000, interval = 1000 } = {}) {
+		super();
+		this.threshold = threshold; // 何ms以上の差分で検知するか
+		this.interval = interval;   // 監視間隔（ms）
+		this.offset = performance.timeOrigin || 0; // performance.now()の起点（初期化時の絶対時刻）
+		this._timer = null;
+	}
+
+	start() {
+		if (this._timer) return;
+		this._timer = setInterval(() => {
+			const perfNow = performance.now();
+			const now = Date.now();
+			// 現在の絶対時刻の期待値（初期offset+経過時間）
+			const expected = this.offset + perfNow;
+			const diff = now - expected;
+			console.log(diff);
+			// threshold以上の差分が出たらシステム時計変更とみなす
+			if (Math.abs(diff) > this.threshold) {
+				// offsetを補正し、イベント発行
+				this.offset += diff;
+				this.dispatchEvent(new CustomEvent("clockchange", {
+					detail: { offset: this.offset, diff }
+				}));
+			}
+		}, this.interval);
+	}
+
+	stop() {
+		if (this._timer) {
+			clearInterval(this._timer);
+			this._timer = null;
+		}
+	}
+}
+
 class JIHO {
 
 	constructor(config) {
@@ -59,6 +103,17 @@ class JIHO {
 		this.voicePath = this.config.voicePath || "./jiho/zunda";
 		this._voiceBufferCache = {};
 		this.preloadVoiceBuffers();
+
+		this.clockMonitor = new ClockMonitor({
+			threshold: 500,
+			interval: 100,
+		});
+		this.clockMonitor.addEventListener("clockchange", (e) => {
+			this.offset = e.detail.offset;
+			alert('システム時計の変更が検出されました');
+			console.log('Clock offset adjusted:', this.offset, 'ms');
+		});
+		this.clockMonitor.start();
 	}
 
 	start() {
@@ -103,7 +158,7 @@ class JIHO {
 		const nnow = (this.offset % 1000) / 1000 + (now / 1000);
 		// 次の1秒の立ちあがりまでの時間
 		const nextSecond = Math.floor(nnow + 1) - nnow;
-		console.log(nextSecond);
+		// console.log(nextSecond);
 
 		// AudioContext における次の1秒の開始時間
 		const startTime = anow + nextSecond;
@@ -187,7 +242,6 @@ class JIHO {
 		}
 		const basePath = this.voicePath;
 		const cache = this._voiceBufferCache;
-		console.log('preloadVoiceBuffers', files);
 		for (const file of files.values()) {
 			if (cache[file]) continue;
 			cache[file] = (async () => {
@@ -227,6 +281,7 @@ class JIHO {
 			return;
 		}
 		this.preloadVoiceBuffers();
+		console.log('playVoiceNotice', start, hour, minute, second);
 
 		const ctx = this.context;
 		const files = this._voiceNoticeFiles(hour, minute, second);
