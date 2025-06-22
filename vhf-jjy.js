@@ -1,8 +1,7 @@
-VHFJJY = function () { this.init.apply(this, arguments) };
-VHFJJY.prototype = {
-	init : function (config) {
-		this.context = this.context || new AudioContext();
-		this.config = this.config || {
+class VHFJJY {
+	constructor(config) {
+		this.context = new AudioContext();
+		this.config = {
 			gain: 0.5,
 			tone: 1000,
 			wpm: 18,
@@ -11,12 +10,7 @@ VHFJJY.prototype = {
 		};
 
 		if (config) Object.assign(this.config, config);
-
-		this.offset = performance.timeOrigin;
-		this.gain = this.gain || this.context.createGain();
-		this.gain.gain.value = 0.5;
-		this.gain.connect(this.context.destination);
-		this.gain.gain.value = this.config.gain;
+		this.init();
 
 		{
 			const secondSamples = this.context.sampleRate * 5e-3; // 5ms
@@ -49,9 +43,16 @@ VHFJJY.prototype = {
 			}
 			this.tenMinutesBuffer = tenMinutesBuffer;
 		}
-	},
+	}
 
-	start : function () {
+	init() {
+		this.offset = performance.timeOrigin;
+		this.gain = this.gain || this.context.createGain();
+		this.gain.gain.value = this.config.gain;
+		this.gain.connect(this.context.destination);
+	}
+
+	start() {
 		if (this._intervalId) return; // すでに開始していれば何もしない
 		var sent = 0;
 		this._intervalId = setInterval(() => {
@@ -62,17 +63,17 @@ VHFJJY.prototype = {
 			sent = willSent;
 			this.queue();
 		}, 250);
-	},
+	}
 
-	stop: function () {
+	stop() {
 		if (this._intervalId) {
 			clearInterval(this._intervalId);
 			this._intervalId = null;
 			this.status = "stopped";
 		}
-	},
+	}
 
-	queue : function () {
+	queue() {
 		const now = performance.now();
 		const anow = this.context.currentTime;
 		
@@ -143,9 +144,9 @@ VHFJJY.prototype = {
 				source.start(startTime + 1);
 			}
 		}
-	},
+	}
 
-	createToneBuffer : function (code) {
+	createToneBuffer(code) {
 		var speed = 
 			this.config.cpm ? 6000 / this.config.cpm:
 			this.config.wpm ? 1200 / this.config.wpm:
