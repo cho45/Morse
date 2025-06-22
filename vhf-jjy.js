@@ -220,7 +220,7 @@ class VHFJJY {
 		source.buffer = this.createToneBuffer(`JJY JJY ${hhmm}  `);
 		console.log('play callsign tone', source.buffer.duration);
 		source.connect(this.gain);
-		startTime += 1;
+		startTime += 0.5;
 		source.start(startTime);
 		startTime += source.buffer.duration;
 
@@ -235,7 +235,7 @@ class VHFJJY {
 			const source = this.context.createBufferSource();
 			source.buffer = voiceBuffer;
 			source.connect(this.voiceGain);
-			startTime += 0.5;
+			startTime += 0.25;
 			source.start(startTime);
 			startTime += voiceBuffer.duration;
 		}
@@ -244,8 +244,8 @@ class VHFJJY {
 			const source = this.context.createBufferSource();
 			source.buffer = this.createToneBuffer(`NNNNN`);
 			source.connect(this.gain);
-			startTime += 1;
-			source.start(startTime + 1);
+			startTime += 0.5;
+			source.start(startTime);
 			startTime += source.buffer.duration;
 		}
 
