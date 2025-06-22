@@ -111,7 +111,7 @@ class VHFJJY {
 		files.push('jjy.mp3');
 		files.push('jjy.mp3');
 		files.push(`H${hour.toString().padStart(2, '0')}.mp3`);
-		if (minute === 0 || minute === 35) {
+		if (minute % 10 === 0) {
 			files.push(`M${minute.toString().padStart(2, '0')}.mp3`);
 		}
 		files.push('jst.mp3');
