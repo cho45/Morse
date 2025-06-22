@@ -27,7 +27,6 @@ class ClockMonitor extends EventTarget {
 			// 現在の絶対時刻の期待値（初期offset+経過時間）
 			const expected = this.offset + perfNow;
 			const diff = now - expected;
-			console.log(diff);
 			// threshold以上の差分が出たらシステム時計変更とみなす
 			if (Math.abs(diff) > this.threshold) {
 				// offsetを補正し、イベント発行
@@ -110,7 +109,6 @@ class JIHO {
 		});
 		this.clockMonitor.addEventListener("clockchange", (e) => {
 			this.offset = e.detail.offset;
-			alert('システム時計の変更が検出されました');
 			console.log('Clock offset adjusted:', this.offset, 'ms');
 		});
 		this.clockMonitor.start();
