@@ -62,6 +62,11 @@ class JIHO {
 	}
 
 	start() {
+		if (this.interval) {
+			// すでに再生中なら何もしない
+			console.warn('JIHO is already running.');
+			return;
+		}
 		this.preloadVoiceBuffers();
 		var sent = 0;
 		this.interval = setInterval(() => {
@@ -76,6 +81,7 @@ class JIHO {
 
 	stop() {
 		clearInterval(this.interval);
+		this.interval = null;
 	}
 
 	/**
