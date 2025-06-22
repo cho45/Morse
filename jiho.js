@@ -293,7 +293,9 @@ class JIHO {
 			const src = ctx.createBufferSource();
 			src.buffer = buffer;
 			src.connect(this.voiceGain);
-			src.start(t);
+			if( t > ctx.currentTime) {
+				src.start(t);
+			}
 			t += buffer.duration;
 		}
 	}
