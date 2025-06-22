@@ -6,8 +6,14 @@ class VHFJJY {
 			tone: 1000,
 			wpm: 18,
 			character_spacing: 1,
-			word_spacing: 1
+			word_spacing: 1,
+			voicePath: "vhf-jjy/audio"
 		};
+		console.log('VHFJJY', this.config);
+
+		this.voicePath = this.config.voicePath || null;
+
+		this._voiceBufferCache = {};
 
 		if (config) Object.assign(this.config, config);
 		this.init();
@@ -50,10 +56,72 @@ class VHFJJY {
 		this.gain = this.gain || this.context.createGain();
 		this.gain.gain.value = this.config.gain;
 		this.gain.connect(this.context.destination);
+
+		this.voiceGain = this.voiceGain || this.context.createGain();
+		this.voiceGain.gain.value = this.config.voiceGain || 2;
+
+		if (this.highpass) return;
+		this.highpass = this.context.createBiquadFilter();
+		this.highpass.type = "highpass";
+		this.highpass.frequency.value = 300;
+
+		this.lowpass = this.context.createBiquadFilter();
+		this.lowpass.type = "lowpass";
+		this.lowpass.frequency.value = 3400;
+
+		this.voiceGain.connect(this.highpass);
+		this.highpass.connect(this.lowpass);
+		this.lowpass.connect(this.context.destination);
+	}
+
+	async preloadVoiceBuffers() {
+		if (this.voicePath === null) return;
+		const ctx = this.context;
+		const files = new Set();
+		const now = new Date();
+		for (let i = 0; i < 5; i++) {
+			const t = new Date(now.getTime() + i * 60 * 1000);
+			const hour = t.getHours();
+			const minute = t.getMinutes();
+			for (const f of this._voiceNoticeFiles(hour, minute)) {
+				files.add(f);
+			}
+		}
+		const basePath = this.voicePath;
+		const cache = this._voiceBufferCache;
+		console.log('preloadVoiceBuffers', files);
+		for (const file of files.values()) {
+			if (cache[file]) continue;
+			cache[file] = (async () => {
+				const res = await fetch(`${basePath}/${file}`);
+				if (!res.ok) {
+					console.error('Failed to fetch voice file:', file, res.status, res.statusText);
+					return;
+				}
+				const buf = await res.arrayBuffer();
+				const audioData = await ctx.decodeAudioData(buf);
+				console.log('preloaded', file, audioData.duration);
+				return audioData;
+			})();
+		}
+	}
+
+	_voiceNoticeFiles(hour, minute) {
+		const files = [];
+		files.push('jjy.mp3');
+		files.push('jjy.mp3');
+		files.push(`H${hour.toString().padStart(2, '0')}.mp3`);
+		if (minute === 0 || minute === 35) {
+			files.push(`M${minute.toString().padStart(2, '0')}.mp3`);
+		}
+		files.push('jst.mp3');
+		files.push('jst.mp3');
+		return files;
 	}
 
 	start() {
 		if (this._intervalId) return; // すでに開始していれば何もしない
+		this.preloadVoiceBuffers();
 		var sent = 0;
 		this._intervalId = setInterval(() => {
 			const time = this.context.currentTime;
@@ -131,19 +199,57 @@ class VHFJJY {
 		if (sendingTime.getMinutes() % 10 === 9) {
 			if (sendingTime.getSeconds() === 30) {
 				this.status = "sending callsign";
-				const targetTime = new Date( Math.floor((willSent + 60) / 60) * 60 * 1000);
-				console.log('call', targetTime);
-
-				const hhmm = String(100 + targetTime.getHours()).substring(1) + String(100 + targetTime.getMinutes()).substring(1);
-
-				// TODO 音声
-				// http://jjy.nict.go.jp/QandA/reference/JJYwav.html が再配布禁止なのでむずかしい
-				const source = this.context.createBufferSource();
-				source.buffer = this.createToneBuffer("JJY JJY " + hhmm + "             NNNNN");
-				source.connect(this.gain);
-				source.start(startTime + 1);
+				this.playCallsign(startTime, willSent);
 			}
 		}
+	}
+
+	async playCallsign(startTime, willSent) {
+		this.preloadVoiceBuffers();
+
+		startTime = startTime || this.context.currentTime;
+		willSent = willSent || Date.now() / 1000;
+		let totalStart = startTime;
+
+		const targetTime = new Date( Math.floor((willSent + 60) / 60) * 60 * 1000);
+		console.log('call', targetTime);
+
+		const hhmm = String(100 + targetTime.getHours()).substring(1) + String(100 + targetTime.getMinutes()).substring(1);
+
+		const source = this.context.createBufferSource();
+		source.buffer = this.createToneBuffer(`JJY JJY ${hhmm}  `);
+		console.log('play callsign tone', source.buffer.duration);
+		source.connect(this.gain);
+		startTime += 1;
+		source.start(startTime);
+		startTime += source.buffer.duration;
+
+		const files = this._voiceNoticeFiles(targetTime.getHours(), targetTime.getMinutes());
+		for (const file of files) {
+			console.log('play voice file:', file);
+			const voiceBuffer = await this._voiceBufferCache[file];
+			if (!voiceBuffer) {
+				console.warn('Voice file not found:', file);
+				continue;
+			}
+			const source = this.context.createBufferSource();
+			source.buffer = voiceBuffer;
+			source.connect(this.voiceGain);
+			startTime += 0.5;
+			source.start(startTime);
+			startTime += voiceBuffer.duration;
+		}
+
+		{
+			const source = this.context.createBufferSource();
+			source.buffer = this.createToneBuffer(`NNNNN`);
+			source.connect(this.gain);
+			startTime += 1;
+			source.start(startTime + 1);
+			startTime += source.buffer.duration;
+		}
+
+		console.log('call sign end', startTime - totalStart);
 	}
 
 	createToneBuffer(code) {
@@ -216,7 +322,11 @@ class VHFJJY {
 document.addEventListener("DOMContentLoaded", function (e) {
 	const jjy = new VHFJJY();
 	document.getElementById('play').onclick = () => {
-		jjy.start();
+		if (location.hash == "#call") {
+			jjy.playCallsign();
+		} else {
+			jjy.start();
+		}
 		document.getElementById('play').style.display = 'none';
 		document.getElementById('stop').style.display = '';
 	};
